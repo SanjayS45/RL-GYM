@@ -5,6 +5,7 @@
 *Inspired by AI Warehouse YouTube Channel*
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Version-1.0.0-brightgreen.svg" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/PyTorch-2.0+-red.svg" alt="PyTorch">
   <img src="https://img.shields.io/badge/React-18+-61dafb.svg" alt="React">
