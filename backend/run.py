@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Run script for RL-GYM backend server."""
+import argparse
+import uvicorn
+
+
+def main():
+    """Start the RL-GYM backend server."""
+    parser = argparse.ArgumentParser(description="RL-GYM Backend Server")
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host to bind the server to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind the server to (default: 8000)"
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload for development"
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of worker processes (default: 1)"
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="info",
+        choices=["debug", "info", "warning", "error", "critical"],
+        help="Log level (default: info)"
+    )
+    
+    args = parser.parse_args()
+    
+    print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     ██████╗ ██╗       ██████╗██╗   ██╗███╗   ███╗           ║
+║     ██╔══██╗██║      ██╔════╝╚██╗ ██╔╝████╗ ████║           ║
+║     ██████╔╝██║█████╗██║  ███╗╚████╔╝ ██╔████╔██║           ║
+║     ██╔══██╗██║╚════╝██║   ██║ ╚██╔╝  ██║╚██╔╝██║           ║
+║     ██║  ██║███████╗ ╚██████╔╝  ██║   ██║ ╚═╝ ██║           ║
+║     ╚═╝  ╚═╝╚══════╝  ╚═════╝   ╚═╝   ╚═╝     ╚═╝           ║
+║                                                              ║
+║     Interactive Reinforcement Learning Training Platform     ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+    Starting server at http://{args.host}:{args.port}
+    
+    API Documentation: http://{args.host}:{args.port}/docs
+    WebSocket endpoint: ws://{args.host}:{args.port}/training/ws
+    
+    Press Ctrl+C to stop the server.
+    """)
+    
+    uvicorn.run(
+        "api.main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        workers=args.workers if not args.reload else 1,
+        log_level=args.log_level
+    )
+
+
+if __name__ == "__main__":
+    main()
+
