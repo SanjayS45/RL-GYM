@@ -13,7 +13,7 @@ interface Dataset {
 }
 
 // Sample datasets that can be "downloaded" or loaded
-const sampleDatasets: Dataset[] = [
+const sampleDatasets: (Dataset & { downloadUrl: string })[] = [
   {
     id: 'sample_nav_expert',
     name: 'Navigation Expert Demos',
@@ -23,6 +23,7 @@ const sampleDatasets: Dataset[] = [
     compatible: true,
     source: 'sample',
     description: 'Expert trajectories from navigation environment. Useful for behavior cloning.',
+    downloadUrl: '/datasets/navigation_expert_demos.json',
   },
   {
     id: 'sample_grid_random',
@@ -33,6 +34,7 @@ const sampleDatasets: Dataset[] = [
     compatible: true,
     source: 'sample',
     description: 'Random exploration data from GridWorld. Good for offline RL pretraining.',
+    downloadUrl: '/datasets/gridworld_random_policy.json',
   },
   {
     id: 'sample_platformer_mixed',
@@ -43,6 +45,7 @@ const sampleDatasets: Dataset[] = [
     compatible: true,
     source: 'sample',
     description: 'Mixed-quality trajectories combining novice and expert play.',
+    downloadUrl: '/datasets/platformer_mixed_quality.json',
   },
 ]
 
@@ -104,16 +107,24 @@ export default function DatasetPanel() {
     }
   }
 
-  const handleDownloadSample = (sample: Dataset) => {
-    // Generate sample data
-    const sampleData = generateSampleData(sample.type, 100)
-    const blob = new Blob([JSON.stringify(sampleData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${sample.id}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleDownloadSample = (sample: Dataset & { downloadUrl?: string }) => {
+    if (sample.downloadUrl) {
+      // Download from actual file
+      const a = document.createElement('a')
+      a.href = sample.downloadUrl
+      a.download = `${sample.id}.json`
+      a.click()
+    } else {
+      // Generate sample data as fallback
+      const sampleData = generateSampleData(sample.type, 100)
+      const blob = new Blob([JSON.stringify(sampleData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${sample.id}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    }
   }
 
   const typeColors = {
