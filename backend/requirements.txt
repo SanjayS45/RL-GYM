@@ -1,0 +1,26 @@
+# Core ML/RL
+torch>=2.0.0
+numpy>=1.24.0
+gymnasium>=0.29.0
+
+# API Server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+websockets>=12.0
+python-multipart>=0.0.6
+
+# Utilities
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+matplotlib>=3.8.0
+tensorboard>=2.15.0
+
+# Natural Language Processing
+transformers>=4.35.0
+sentence-transformers>=2.2.0
+
+# Data handling
+pandas>=2.1.0
+h5py>=3.10.0
+
