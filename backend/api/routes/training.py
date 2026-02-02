@@ -1,305 +1,272 @@
-"""
-Training API Routes
-
-Endpoints for starting, monitoring, and controlling training sessions.
-"""
-
-from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
-from pydantic import BaseModel, Field
-import uuid
+"""Training routes for RL-GYM API."""
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from pydantic import BaseModel
 import asyncio
-import logging
 
-from ..websocket import manager
+from ..websocket import WebSocketManager
+from ...training import TrainingManager, TrainingSession
+from ...config import Config
 
-logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/training", tags=["training"])
 
-router = APIRouter()
+# Global training manager
+training_manager = TrainingManager()
 
-# Active training sessions
-training_sessions: Dict[str, Dict[str, Any]] = {}
+# WebSocket manager for live updates
+ws_manager = WebSocketManager()
 
 
 class TrainingConfig(BaseModel):
-    """Training configuration model."""
-    
-    algorithm: str = Field(default="PPO", description="RL algorithm to use")
-    environment: str = Field(default="navigation", description="Environment name")
-    environment_config: Dict[str, Any] = Field(default_factory=dict)
-    
-    # Hyperparameters
-    learning_rate: float = Field(default=3e-4, ge=1e-6, le=1.0)
-    gamma: float = Field(default=0.99, ge=0.0, le=1.0)
-    batch_size: int = Field(default=64, ge=1)
-    n_steps: int = Field(default=2048, ge=1)
-    n_epochs: int = Field(default=10, ge=1)
-    
-    # Training settings
-    total_timesteps: int = Field(default=100000, ge=1)
-    eval_frequency: int = Field(default=1000, ge=1)
-    save_frequency: int = Field(default=10000, ge=1)
-    
-    # Goal (optional natural language)
-    goal_text: Optional[str] = None
-    
-    # Visualization
-    render_frequency: int = Field(default=100, ge=1)
+    """Training configuration request model."""
+    environment: str = "gridworld"
+    algorithm: str = "dqn"
+    env_config: Optional[Dict[str, Any]] = None
+    agent_config: Optional[Dict[str, Any]] = None
+    training_config: Optional[Dict[str, Any]] = None
+    natural_language_goal: Optional[str] = None
+    dataset_id: Optional[str] = None
 
 
-class TrainingSession(BaseModel):
-    """Training session response model."""
-    
+class TrainingResponse(BaseModel):
+    """Training response model."""
     session_id: str
     status: str
-    algorithm: str
-    environment: str
-    current_step: int = 0
-    current_episode: int = 0
-    metrics: Dict[str, float] = Field(default_factory=dict)
+    message: str
 
 
-@router.post("/start", response_model=TrainingSession)
-async def start_training(
-    config: TrainingConfig,
-    background_tasks: BackgroundTasks
-):
-    """
-    Start a new training session.
-    
-    Creates a new training session with the specified configuration
-    and begins training in the background.
-    """
-    session_id = str(uuid.uuid4())[:8]
-    
-    # Create session record
-    session = {
-        "id": session_id,
-        "status": "initializing",
-        "config": config.dict(),
-        "current_step": 0,
-        "current_episode": 0,
-        "metrics": {},
-        "history": {
-            "rewards": [],
-            "lengths": [],
-            "losses": [],
-        }
-    }
-    training_sessions[session_id] = session
-    
-    # Start training in background
-    background_tasks.add_task(run_training, session_id, config)
-    
-    logger.info(f"Started training session: {session_id}")
-    
-    return TrainingSession(
-        session_id=session_id,
-        status="initializing",
-        algorithm=config.algorithm,
-        environment=config.environment,
-    )
-
-
-async def run_training(session_id: str, config: TrainingConfig):
-    """
-    Run training in background.
-    
-    This function simulates the training loop and sends updates via WebSocket.
-    In production, this would use the actual RL algorithms.
-    """
-    import numpy as np
-    
-    session = training_sessions.get(session_id)
-    if not session:
-        return
-    
+@router.post("/start", response_model=TrainingResponse)
+async def start_training(config: TrainingConfig):
+    """Start a new training session."""
     try:
-        session["status"] = "running"
+        # Get environment config
+        env_config = config.env_config or {}
+        env_config["env_type"] = config.environment
         
-        # Simulate training loop
-        total_steps = config.total_timesteps
-        episode = 0
-        episode_reward = 0
-        episode_length = 0
+        # Get agent config
+        agent_config = config.agent_config or {}
+        agent_config["algorithm"] = config.algorithm
         
-        for step in range(total_steps):
-            session["current_step"] = step
-            
-            # Simulate step reward (with gradual improvement)
-            progress = step / total_steps
-            base_reward = -0.1 + progress * 0.3
-            reward = base_reward + np.random.normal(0, 0.1)
-            
-            episode_reward += reward
-            episode_length += 1
-            
-            # Simulate episode end
-            if np.random.random() < 0.01 or episode_length > 500:
-                episode += 1
-                session["current_episode"] = episode
-                
-                # Store history
-                session["history"]["rewards"].append(episode_reward)
-                session["history"]["lengths"].append(episode_length)
-                
-                # Calculate metrics
-                recent_rewards = session["history"]["rewards"][-100:]
-                metrics = {
-                    "mean_reward": float(np.mean(recent_rewards)),
-                    "max_reward": float(np.max(recent_rewards)),
-                    "episode_length": float(np.mean(session["history"]["lengths"][-100:])),
-                    "loss": max(0.01, 1.0 - progress),
-                }
-                session["metrics"] = metrics
-                
-                # Broadcast episode completion
-                await manager.broadcast_episode_complete(
-                    session_id,
-                    episode,
-                    episode_reward,
-                    episode_length,
-                    metrics
-                )
-                
-                episode_reward = 0
-                episode_length = 0
-            
-            # Send periodic updates
-            if step % config.render_frequency == 0:
-                # Simulate environment state for visualization
-                state = {
-                    "position": [
-                        100 + 600 * progress + np.random.normal(0, 10),
-                        300 + np.random.normal(0, 50)
-                    ],
-                    "velocity": [np.random.normal(50, 10), np.random.normal(0, 20)],
-                }
-                
-                await manager.broadcast_training_update(
-                    session_id,
-                    step,
-                    episode,
-                    reward,
-                    session["metrics"],
-                    state
-                )
-            
-            # Small delay to prevent CPU overuse
-            if step % 100 == 0:
-                await asyncio.sleep(0.01)
+        # Get training config
+        training_config = config.training_config or {}
         
-        # Training complete
-        session["status"] = "completed"
-        await manager.broadcast_training_complete(
-            session_id,
-            total_steps,
-            episode,
-            session["metrics"]
+        # Add natural language goal if provided
+        if config.natural_language_goal:
+            env_config["natural_language_goal"] = config.natural_language_goal
+        
+        # Add dataset if provided
+        if config.dataset_id:
+            training_config["dataset_id"] = config.dataset_id
+        
+        # Create session through manager
+        session_id = training_manager.create_session(
+            env_config=env_config,
+            agent_config=agent_config,
+            training_config=training_config
         )
         
+        # Start training asynchronously
+        asyncio.create_task(_run_training(session_id))
+        
+        return TrainingResponse(
+            session_id=session_id,
+            status="started",
+            message=f"Training session {session_id} started"
+        )
     except Exception as e:
-        logger.error(f"Training error: {e}")
-        session["status"] = "error"
-        session["error"] = str(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{session_id}", response_model=TrainingSession)
-async def get_training_status(session_id: str):
-    """Get the status of a training session."""
-    if session_id not in training_sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = training_sessions[session_id]
-    return TrainingSession(
-        session_id=session_id,
-        status=session["status"],
-        algorithm=session["config"]["algorithm"],
-        environment=session["config"]["environment"],
-        current_step=session["current_step"],
-        current_episode=session["current_episode"],
-        metrics=session["metrics"],
-    )
+async def _run_training(session_id: str):
+    """Run training in background and broadcast updates."""
+    try:
+        async for update in training_manager.run_session(session_id):
+            # Broadcast update to all connected WebSocket clients
+            await ws_manager.broadcast({
+                "type": "training_update",
+                "session_id": session_id,
+                **update
+            })
+    except Exception as e:
+        await ws_manager.broadcast({
+            "type": "training_error",
+            "session_id": session_id,
+            "error": str(e)
+        })
 
 
-@router.post("/{session_id}/pause")
-async def pause_training(session_id: str):
-    """Pause a running training session."""
-    if session_id not in training_sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = training_sessions[session_id]
-    if session["status"] == "running":
-        session["status"] = "paused"
-    
-    return {"status": session["status"]}
-
-
-@router.post("/{session_id}/resume")
-async def resume_training(session_id: str):
-    """Resume a paused training session."""
-    if session_id not in training_sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = training_sessions[session_id]
-    if session["status"] == "paused":
-        session["status"] = "running"
-    
-    return {"status": session["status"]}
-
-
-@router.post("/{session_id}/stop")
+@router.post("/stop/{session_id}")
 async def stop_training(session_id: str):
     """Stop a training session."""
-    if session_id not in training_sessions:
+    try:
+        training_manager.stop_session(session_id)
+        return {"status": "stopped", "session_id": session_id}
+    except KeyError:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = training_sessions[session_id]
-    session["status"] = "stopped"
-    
-    return {"status": "stopped"}
 
 
-@router.get("/{session_id}/history")
-async def get_training_history(session_id: str):
-    """Get training history for a session."""
-    if session_id not in training_sessions:
+@router.post("/pause/{session_id}")
+async def pause_training(session_id: str):
+    """Pause a training session."""
+    try:
+        training_manager.pause_session(session_id)
+        return {"status": "paused", "session_id": session_id}
+    except KeyError:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = training_sessions[session_id]
-    return session["history"]
 
 
-@router.get("/")
+@router.post("/resume/{session_id}")
+async def resume_training(session_id: str):
+    """Resume a paused training session."""
+    try:
+        training_manager.resume_session(session_id)
+        return {"status": "resumed", "session_id": session_id}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+@router.get("/status/{session_id}")
+async def get_training_status(session_id: str):
+    """Get the status of a training session."""
+    try:
+        session = training_manager.get_session(session_id)
+        return {
+            "session_id": session_id,
+            "status": session.status.value,
+            "current_step": session.current_step,
+            "current_episode": session.current_episode,
+            "metrics": session.metrics_history[-10:] if session.metrics_history else []
+        }
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+@router.get("/sessions")
 async def list_sessions():
     """List all training sessions."""
-    return [
-        {
-            "session_id": sid,
-            "status": session["status"],
-            "algorithm": session["config"]["algorithm"],
-            "environment": session["config"]["environment"],
-            "current_step": session["current_step"],
+    sessions = []
+    for session_id in training_manager.sessions:
+        session = training_manager.get_session(session_id)
+        sessions.append({
+            "session_id": session_id,
+            "status": session.status.value,
+            "current_step": session.current_step,
+            "current_episode": session.current_episode
+        })
+    return {"sessions": sessions}
+
+
+@router.get("/metrics/{session_id}")
+async def get_metrics(session_id: str, limit: int = 100):
+    """Get training metrics for a session."""
+    try:
+        session = training_manager.get_session(session_id)
+        metrics = session.metrics_history[-limit:] if session.metrics_history else []
+        return {
+            "session_id": session_id,
+            "metrics": metrics,
+            "total_steps": session.current_step,
+            "total_episodes": session.current_episode
         }
-        for sid, session in training_sessions.items()
-    ]
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
 
 
-@router.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    """
-    WebSocket endpoint for real-time training updates.
-    
-    Connect to receive live updates during training.
-    """
-    await manager.connect(websocket, session_id)
+@router.delete("/session/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a training session."""
+    try:
+        training_manager.cleanup_session(session_id)
+        return {"status": "deleted", "session_id": session_id}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+@router.websocket("/ws")
+async def training_websocket(websocket: WebSocket):
+    """WebSocket endpoint for live training updates."""
+    await ws_manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive and handle client messages
-            data = await websocket.receive_text()
-            # Handle commands from client
-            if data == "ping":
-                await manager.send_personal(websocket, {"type": "pong"})
+            # Keep connection alive
+            data = await websocket.receive_json()
+            
+            # Handle client messages
+            if data.get("type") == "subscribe":
+                session_id = data.get("session_id")
+                if session_id:
+                    await websocket.send_json({
+                        "type": "subscribed",
+                        "session_id": session_id
+                    })
+            elif data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+                
     except WebSocketDisconnect:
-        await manager.disconnect(websocket, session_id)
+        ws_manager.disconnect(websocket)
 
+
+@router.get("/algorithms")
+async def list_algorithms():
+    """List available RL algorithms and their configurations."""
+    return {
+        "algorithms": [
+            {
+                "id": "dqn",
+                "name": "Deep Q-Network (DQN)",
+                "description": "Value-based algorithm with experience replay",
+                "parameters": {
+                    "learning_rate": {"type": "float", "default": 0.001, "min": 0.0001, "max": 0.1},
+                    "gamma": {"type": "float", "default": 0.99, "min": 0.9, "max": 0.999},
+                    "epsilon_start": {"type": "float", "default": 1.0, "min": 0.1, "max": 1.0},
+                    "epsilon_end": {"type": "float", "default": 0.01, "min": 0.01, "max": 0.5},
+                    "epsilon_decay": {"type": "float", "default": 0.995, "min": 0.9, "max": 0.999},
+                    "buffer_size": {"type": "int", "default": 10000, "min": 1000, "max": 1000000},
+                    "batch_size": {"type": "int", "default": 64, "min": 16, "max": 512},
+                    "target_update_freq": {"type": "int", "default": 100, "min": 10, "max": 1000}
+                }
+            },
+            {
+                "id": "ppo",
+                "name": "Proximal Policy Optimization (PPO)",
+                "description": "Policy gradient with clipped surrogate objective",
+                "parameters": {
+                    "learning_rate": {"type": "float", "default": 0.0003, "min": 0.0001, "max": 0.01},
+                    "gamma": {"type": "float", "default": 0.99, "min": 0.9, "max": 0.999},
+                    "clip_epsilon": {"type": "float", "default": 0.2, "min": 0.1, "max": 0.4},
+                    "value_coef": {"type": "float", "default": 0.5, "min": 0.1, "max": 1.0},
+                    "entropy_coef": {"type": "float", "default": 0.01, "min": 0.001, "max": 0.1},
+                    "n_steps": {"type": "int", "default": 2048, "min": 128, "max": 4096},
+                    "n_epochs": {"type": "int", "default": 10, "min": 1, "max": 20},
+                    "batch_size": {"type": "int", "default": 64, "min": 16, "max": 512}
+                }
+            },
+            {
+                "id": "sac",
+                "name": "Soft Actor-Critic (SAC)",
+                "description": "Off-policy actor-critic with entropy regularization",
+                "parameters": {
+                    "learning_rate": {"type": "float", "default": 0.0003, "min": 0.0001, "max": 0.01},
+                    "gamma": {"type": "float", "default": 0.99, "min": 0.9, "max": 0.999},
+                    "tau": {"type": "float", "default": 0.005, "min": 0.001, "max": 0.1},
+                    "alpha": {"type": "float", "default": 0.2, "min": 0.01, "max": 1.0},
+                    "auto_alpha": {"type": "bool", "default": True},
+                    "buffer_size": {"type": "int", "default": 100000, "min": 10000, "max": 1000000},
+                    "batch_size": {"type": "int", "default": 256, "min": 64, "max": 1024}
+                }
+            },
+            {
+                "id": "a2c",
+                "name": "Advantage Actor-Critic (A2C)",
+                "description": "Synchronous actor-critic algorithm",
+                "parameters": {
+                    "learning_rate": {"type": "float", "default": 0.0007, "min": 0.0001, "max": 0.01},
+                    "gamma": {"type": "float", "default": 0.99, "min": 0.9, "max": 0.999},
+                    "value_coef": {"type": "float", "default": 0.5, "min": 0.1, "max": 1.0},
+                    "entropy_coef": {"type": "float", "default": 0.01, "min": 0.001, "max": 0.1},
+                    "n_steps": {"type": "int", "default": 5, "min": 1, "max": 20},
+                    "max_grad_norm": {"type": "float", "default": 0.5, "min": 0.1, "max": 1.0}
+                }
+            }
+        ]
+    }
