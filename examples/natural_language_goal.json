@@ -1,0 +1,24 @@
+{
+  "name": "Natural Language Goal Example",
+  "description": "Train an agent using a natural language goal description",
+  "environment": {
+    "type": "navigation",
+    "width": 20.0,
+    "height": 20.0,
+    "seed": 42
+  },
+  "natural_language_goal": "Reach the green target while avoiding red obstacles. Prefer shorter paths and smooth movements.",
+  "agent": {
+    "algorithm": "ppo",
+    "learning_rate": 0.0003,
+    "gamma": 0.99,
+    "hidden_dims": [256, 256]
+  },
+  "training": {
+    "total_timesteps": 100000,
+    "eval_freq": 2000,
+    "log_freq": 100,
+    "render_freq": 5
+  }
+}
+
