@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, TrendingUp, Activity, Clock } from 'lucide-react'
+import { BarChart3, TrendingUp, Activity, Clock, AlertCircle } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -16,6 +16,8 @@ import { useStore } from '../../store/useStore'
 
 export default function MetricsPanel() {
   const { training } = useStore()
+
+  const hasData = training.history.rewards.length > 0
 
   // Generate chart data from history
   const rewardData = useMemo(() => {
@@ -35,185 +37,208 @@ export default function MetricsPanel() {
     }))
   }, [training.history.losses, training.history.steps])
 
-  // Sample data for demo when no training
-  const sampleRewardData = Array.from({ length: 50 }, (_, i) => ({
-    episode: i + 1,
-    reward: Math.sin(i / 5) * 30 + 50 + Math.random() * 20 + i * 0.5,
-    avgReward: Math.sin(i / 5) * 20 + 50 + i * 0.5,
-  }))
-
-  const sampleLossData = Array.from({ length: 100 }, (_, i) => ({
-    step: i * 1000,
-    loss: 1 / (1 + i * 0.1) + Math.random() * 0.1,
-  }))
-
-  const displayRewardData = rewardData.length > 0 ? rewardData : sampleRewardData
-  const displayLossData = lossData.length > 0 ? lossData : sampleLossData
-
   return (
-    <div className="h-full flex flex-col gap-6">
-      {/* Summary metrics */}
-      <div className="grid grid-cols-4 gap-4">
+    <div className="h-full flex flex-col gap-4">
+      {/* Summary metrics - only show real values when data exists */}
+      <div className="grid grid-cols-4 gap-3">
         <MetricSummaryCard
-          icon={<TrendingUp className="w-5 h-5" />}
+          icon={<TrendingUp className="w-4 h-4" />}
           label="Mean Reward"
-          value={training.metrics.meanReward.toFixed(2)}
-          change="+12.5%"
-          trend="up"
+          value={hasData ? training.metrics.meanReward.toFixed(2) : '--'}
+          change={hasData ? undefined : undefined}
+          trend={hasData && training.metrics.meanReward > 0 ? 'up' : undefined}
           color="cyan"
         />
         <MetricSummaryCard
-          icon={<BarChart3 className="w-5 h-5" />}
+          icon={<BarChart3 className="w-4 h-4" />}
           label="Max Reward"
-          value={training.metrics.maxReward.toFixed(2)}
-          change="+8.3%"
-          trend="up"
+          value={hasData ? training.metrics.maxReward.toFixed(2) : '--'}
+          change={undefined}
+          trend={hasData && training.metrics.maxReward > 0 ? 'up' : undefined}
           color="green"
         />
         <MetricSummaryCard
-          icon={<Activity className="w-5 h-5" />}
+          icon={<Activity className="w-4 h-4" />}
           label="Current Loss"
-          value={training.metrics.loss.toFixed(4)}
-          change="-15.2%"
-          trend="down"
+          value={hasData ? training.metrics.loss.toFixed(6) : '--'}
+          change={undefined}
+          trend={undefined}
           color="purple"
         />
         <MetricSummaryCard
-          icon={<Clock className="w-5 h-5" />}
+          icon={<Clock className="w-4 h-4" />}
           label="Avg Episode Length"
-          value={training.metrics.episodeLength.toFixed(0)}
-          change="+5.1%"
-          trend="up"
+          value={hasData ? training.metrics.episodeLength.toFixed(0) : '--'}
+          change={undefined}
+          trend={undefined}
           color="orange"
         />
       </div>
 
-      {/* Charts */}
-      <div className="flex-1 grid grid-cols-2 gap-6">
+      {/* Charts - only show when data exists */}
+      <div className="flex-1 grid grid-cols-2 gap-4">
         {/* Reward chart */}
         <div className="panel">
-          <h2 className="panel-header">
-            <TrendingUp className="w-5 h-5" />
+          <h2 className="panel-header text-sm">
+            <TrendingUp className="w-4 h-4" />
             Episode Rewards
           </h2>
-          <div className="h-[calc(100%-60px)]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={displayRewardData}>
-                <defs>
-                  <linearGradient id="rewardGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00d9ff" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00d9ff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis
-                  dataKey="episode"
-                  stroke="#666"
-                  fontSize={12}
-                  tickLine={false}
-                />
-                <YAxis stroke="#666" fontSize={12} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1a1a2e',
-                    border: '1px solid #333',
-                    borderRadius: '8px',
-                  }}
-                  labelStyle={{ color: '#999' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="reward"
-                  stroke="#00d9ff"
-                  strokeWidth={2}
-                  fill="url(#rewardGradient)"
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="avgReward"
-                  stroke="#a855f7"
-                  strokeWidth={2}
-                  dot={false}
-                  strokeDasharray="5 5"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[calc(100%-50px)]">
+            {hasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={rewardData}>
+                  <defs>
+                    <linearGradient id="rewardGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00d9ff" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#00d9ff" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
+                  <XAxis
+                    dataKey="episode"
+                    stroke="#4a4a5e"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={{ stroke: '#2a2a3e' }}
+                  />
+                  <YAxis 
+                    stroke="#4a4a5e" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={{ stroke: '#2a2a3e' }}
+                    tickFormatter={(v) => v.toFixed(1)}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1a1a2e',
+                      border: '1px solid #2a2a3e',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                    }}
+                    labelStyle={{ color: '#666' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="reward"
+                    stroke="#00d9ff"
+                    strokeWidth={1.5}
+                    fill="url(#rewardGradient)"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="avgReward"
+                    stroke="#a855f7"
+                    strokeWidth={1.5}
+                    dot={false}
+                    strokeDasharray="4 4"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChartState message="Reward data will appear here once training begins" />
+            )}
           </div>
         </div>
 
         {/* Loss chart */}
         <div className="panel">
-          <h2 className="panel-header">
-            <Activity className="w-5 h-5" />
+          <h2 className="panel-header text-sm">
+            <Activity className="w-4 h-4" />
             Training Loss
           </h2>
-          <div className="h-[calc(100%-60px)]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayLossData}>
-                <defs>
-                  <linearGradient id="lossGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis
-                  dataKey="step"
-                  stroke="#666"
-                  fontSize={12}
-                  tickLine={false}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis stroke="#666" fontSize={12} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1a1a2e',
-                    border: '1px solid #333',
-                    borderRadius: '8px',
-                  }}
-                  labelStyle={{ color: '#999' }}
-                  formatter={(value: number) => [value.toFixed(4), 'Loss']}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="loss"
-                  stroke="#a855f7"
-                  strokeWidth={2}
-                  dot={false}
-                  fill="url(#lossGradient)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="h-[calc(100%-50px)]">
+            {hasData && lossData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lossData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
+                  <XAxis
+                    dataKey="step"
+                    stroke="#4a4a5e"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={{ stroke: '#2a2a3e' }}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <YAxis 
+                    stroke="#4a4a5e" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={{ stroke: '#2a2a3e' }}
+                    tickFormatter={(v) => v.toExponential(1)}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1a1a2e',
+                      border: '1px solid #2a2a3e',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                    }}
+                    labelStyle={{ color: '#666' }}
+                    formatter={(value: number) => [value.toExponential(4), 'Loss']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="loss"
+                    stroke="#a855f7"
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChartState message="Loss curve will appear here once training begins" />
+            )}
           </div>
         </div>
       </div>
 
       {/* Training log */}
-      <div className="panel h-48">
-        <h2 className="panel-header">
-          <span className="text-accent-green">📋</span>
+      <div className="panel h-40">
+        <h2 className="panel-header text-sm">
+          <span className="text-green-500">▸</span>
           Training Log
         </h2>
-        <div className="h-[calc(100%-50px)] overflow-y-auto font-mono text-xs space-y-1">
+        <div className="h-[calc(100%-40px)] overflow-y-auto font-mono text-xs">
           {training.history.rewards.length === 0 ? (
-            <div className="text-gray-500 text-center py-4">
-              Training logs will appear here...
+            <div className="text-gray-500 text-center py-6">
+              <AlertCircle className="w-5 h-5 mx-auto mb-2 opacity-50" />
+              <p>No training data available</p>
+              <p className="text-gray-600 text-[10px] mt-1">Start a training run to see logs</p>
             </div>
           ) : (
-            training.history.rewards.slice(-20).map((reward, i) => (
-              <div key={i} className="flex gap-4 text-gray-400">
-                <span className="text-gray-600">[Episode {training.history.rewards.length - 20 + i + 1}]</span>
-                <span>
-                  Reward: <span className="text-accent-cyan">{reward.toFixed(2)}</span>
-                </span>
-                <span>
-                  Loss: <span className="text-accent-purple">{training.history.losses[training.history.losses.length - 20 + i]?.toFixed(4) || 'N/A'}</span>
-                </span>
-              </div>
-            ))
+            <div className="space-y-0.5">
+              {training.history.rewards.slice(-30).map((reward, i) => {
+                const episodeNum = training.history.rewards.length - 30 + i + 1
+                const loss = training.history.losses[training.history.losses.length - 30 + i]
+                return (
+                  <div key={i} className="flex gap-3 text-gray-400 hover:bg-surface-200/30 px-2 py-0.5">
+                    <span className="text-gray-600 w-16">[E{episodeNum.toString().padStart(4, '0')}]</span>
+                    <span className="w-28">
+                      R: <span className="text-cyan-400">{reward.toFixed(3)}</span>
+                    </span>
+                    <span className="w-32">
+                      L: <span className="text-purple-400">{loss?.toExponential(2) || 'N/A'}</span>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyChartState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-surface-300/50 flex items-center justify-center">
+          <BarChart3 className="w-6 h-6 text-gray-600" />
+        </div>
+        <p className="text-gray-500 text-xs max-w-[200px]">{message}</p>
       </div>
     </div>
   )
@@ -230,38 +255,35 @@ function MetricSummaryCard({
   icon: React.ReactNode
   label: string
   value: string
-  change: string
-  trend: 'up' | 'down'
+  change?: string
+  trend?: 'up' | 'down'
   color: 'cyan' | 'green' | 'purple' | 'orange'
 }) {
   const colorClasses = {
-    cyan: 'text-accent-cyan bg-accent-cyan/10',
-    green: 'text-accent-green bg-accent-green/10',
-    purple: 'text-accent-purple bg-accent-purple/10',
-    orange: 'text-accent-orange bg-accent-orange/10',
+    cyan: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+    green: 'text-green-400 bg-green-400/10 border-green-400/20',
+    purple: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+    orange: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="panel"
-    >
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`p-2 rounded-lg ${colorClasses[color]}`}>{icon}</div>
-        <span className="text-sm text-gray-400">{label}</span>
+    <div className="panel py-3 px-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`p-1.5 rounded border ${colorClasses[color]}`}>{icon}</div>
+        <span className="text-xs text-gray-400">{label}</span>
       </div>
       <div className="flex items-end justify-between">
-        <span className="text-2xl font-mono font-bold text-white">{value}</span>
-        <span
-          className={`text-sm ${
-            trend === 'up' ? 'text-accent-green' : 'text-red-400'
-          }`}
-        >
-          {change}
-        </span>
+        <span className="text-xl font-mono font-semibold text-white">{value}</span>
+        {change && trend && (
+          <span
+            className={`text-xs ${
+              trend === 'up' ? 'text-green-400' : 'text-red-400'
+            }`}
+          >
+            {change}
+          </span>
+        )}
       </div>
-    </motion.div>
+    </div>
   )
 }
-
