@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-surface: 15 15 35;
+    --color-accent: 0 217 255;
+  }
+
+  body {
+    @apply bg-surface-200 text-gray-100 font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  * {
+    @apply border-gray-700;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-300;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-surface-100/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4;
+  }
+
+  .panel-header {
+    @apply text-lg font-display font-semibold text-accent-cyan mb-4 flex items-center gap-2;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-neural-light to-neural rounded-lg font-medium
+           hover:from-neural to-neural-dark transition-all duration-200
+           shadow-lg shadow-neural/25 hover:shadow-neural/40;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-surface-200 border border-gray-600 rounded-lg font-medium
+           hover:bg-surface-100 hover:border-gray-500 transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 bg-surface-300/50 border border-gray-600 rounded-lg
+           focus:outline-none focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/50
+           placeholder-gray-500 transition-colors;
+  }
+
+  .slider-track {
+    @apply h-2 bg-surface-300 rounded-full;
+  }
+
+  .slider-thumb {
+    @apply w-4 h-4 bg-accent-cyan rounded-full shadow-lg shadow-accent-cyan/50
+           hover:bg-cyan-400 transition-colors cursor-pointer;
+  }
+
+  .tab-active {
+    @apply border-b-2 border-accent-cyan text-accent-cyan;
+  }
+
+  .metric-card {
+    @apply bg-surface-200/50 rounded-lg p-3 border border-gray-700/30;
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  }
+
+  .glow-green {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  /* Grid background */
+  .grid-bg {
+    background-size: 30px 30px;
+    background-image: 
+      linear-gradient(to right, rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+  }
+
+  /* Animations */
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 25px rgba(0, 217, 255, 0.6);
+    }
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-accent-purple;
+  }
+}
+
