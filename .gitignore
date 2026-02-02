@@ -61,6 +61,7 @@ runs/
 !postcss.config.js
 !vite.config.ts
 !examples/*.json
+!frontend/public/datasets/*.json
 datasets/uploads/
 
 # Node

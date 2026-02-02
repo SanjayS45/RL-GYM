@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "Platformer Mixed Quality",
+    "type": "offline",
+    "environment": "platformer",
+    "config": "simple",
+    "total_episodes": 250,
+    "total_samples": 25000,
+    "observation_space": {
+      "type": "Box",
+      "shape": [6],
+      "description": ["agent_x", "agent_y", "velocity_x", "velocity_y", "platform_dist", "goal_dist"]
+    },
+    "action_space": {
+      "type": "Discrete",
+      "n": 3,
+      "actions": ["left", "right", "jump"]
+    },
+    "created_at": "2024-01-15",
+    "description": "Mixed-quality trajectories from platformer environment. Contains both novice mistakes and expert play."
+  },
+  "samples": [
+    {"obs": [0.10, 0.92, 0.0, 0.0, 0.15, 0.85], "action": 1, "reward": 0.01, "next_obs": [0.12, 0.92, 0.02, 0.0, 0.13, 0.83], "done": false},
+    {"obs": [0.12, 0.92, 0.02, 0.0, 0.13, 0.83], "action": 1, "reward": 0.01, "next_obs": [0.14, 0.92, 0.02, 0.0, 0.11, 0.81], "done": false},
+    {"obs": [0.14, 0.92, 0.02, 0.0, 0.11, 0.81], "action": 2, "reward": 0.05, "next_obs": [0.16, 0.85, 0.02, -0.07, 0.09, 0.79], "done": false},
+    {"obs": [0.16, 0.85, 0.02, -0.07, 0.09, 0.79], "action": 1, "reward": 0.01, "next_obs": [0.18, 0.78, 0.02, -0.07, 0.07, 0.77], "done": false},
+    {"obs": [0.18, 0.78, 0.02, -0.07, 0.07, 0.77], "action": 1, "reward": 0.01, "next_obs": [0.20, 0.75, 0.02, -0.03, 0.05, 0.75], "done": false},
+    {"obs": [0.20, 0.75, 0.02, -0.03, 0.00, 0.75], "action": 1, "reward": 0.10, "next_obs": [0.22, 0.75, 0.02, 0.0, -0.03, 0.73], "done": false},
+    {"obs": [0.50, 0.92, 0.0, 0.0, 0.25, 0.45], "action": 0, "reward": -0.01, "next_obs": [0.48, 0.92, -0.02, 0.0, 0.27, 0.47], "done": false},
+    {"obs": [0.48, 0.92, -0.02, 0.0, 0.27, 0.47], "action": 0, "reward": -0.01, "next_obs": [0.46, 0.92, -0.02, 0.0, 0.29, 0.49], "done": false},
+    {"obs": [0.30, 0.50, 0.02, -0.10, 0.20, 0.55], "action": 2, "reward": -1.0, "next_obs": [0.32, 0.0, 0.02, -0.20, 0.0, 0.0], "done": true},
+    {"obs": [0.95, 0.75, 0.02, 0.0, 0.0, 0.02], "action": 1, "reward": 1.0, "next_obs": [0.97, 0.75, 0.02, 0.0, 0.0, 0.0], "done": true}
+  ]
+}
+
