@@ -1,9 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap, Eye, Target } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+
+interface AgentState {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  trajectory: Array<{ x: number; y: number }>
+}
+
+interface SimulationState {
+  agent: AgentState
+  goal: { x: number; y: number }
+  obstacles: Array<{ x: number; y: number; w: number; h: number }>
+  episodeReward: number
+  episodeStep: number
+  reachedGoal: boolean
+}
 
 export default function TrainingPanel() {
   const { 
@@ -25,10 +42,57 @@ export default function TrainingPanel() {
   const [ws, setWs] = useState<WebSocket | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected')
   const [logs, setLogs] = useState<string[]>([])
+  
+  // Simulation state for visualization
+  const [simulation, setSimulation] = useState<SimulationState>({
+    agent: { x: 80, y: 300, vx: 0, vy: 0, trajectory: [] },
+    goal: { x: 700, y: 300 },
+    obstacles: [],
+    episodeReward: 0,
+    episodeStep: 0,
+    reachedGoal: false,
+  })
+  const [visualizationSpeed, setVisualizationSpeed] = useState(1)
+  const simulationRef = useRef<number | null>(null)
+  const stepRef = useRef(0)
+  const episodeRef = useRef(0)
 
   const isTraining = training.status === 'running'
   const isPaused = training.status === 'paused'
   const canStart = training.status === 'idle' || training.status === 'completed'
+
+  // Initialize obstacles based on environment config
+  useEffect(() => {
+    const obstacleConfigs: Record<string, Array<{ x: number; y: number; w: number; h: number }>> = {
+      simple_obstacles: [
+        { x: 280, y: 150, w: 80, h: 150 },
+        { x: 450, y: 350, w: 120, h: 80 },
+        { x: 350, y: 50, w: 60, h: 100 },
+      ],
+      maze_like: [
+        { x: 150, y: 100, w: 200, h: 15 },
+        { x: 450, y: 100, w: 200, h: 15 },
+        { x: 200, y: 200, w: 150, h: 15 },
+        { x: 450, y: 200, w: 150, h: 15 },
+        { x: 150, y: 300, w: 200, h: 15 },
+        { x: 450, y: 300, w: 200, h: 15 },
+        { x: 200, y: 400, w: 150, h: 15 },
+        { x: 450, y: 400, w: 150, h: 15 },
+      ],
+      cluttered: Array.from({ length: 15 }, (_, i) => ({
+        x: 150 + (i % 5) * 100 + Math.random() * 50,
+        y: 80 + Math.floor(i / 5) * 150 + Math.random() * 50,
+        w: 30 + Math.random() * 40,
+        h: 30 + Math.random() * 40,
+      })),
+      empty: [],
+    }
+    
+    setSimulation(prev => ({
+      ...prev,
+      obstacles: obstacleConfigs[environment.config] || obstacleConfigs.simple_obstacles,
+    }))
+  }, [environment.config])
 
   // Connect to WebSocket
   const connectWebSocket = useCallback(() => {
@@ -54,6 +118,18 @@ export default function TrainingPanel() {
           }
           if (data.reward !== undefined && data.loss !== undefined) {
             addToHistory(data.reward, data.loss)
+          }
+          // Update visualization if agent position is provided
+          if (data.agent_position) {
+            setSimulation(prev => ({
+              ...prev,
+              agent: {
+                ...prev.agent,
+                x: data.agent_position[0],
+                y: data.agent_position[1],
+                trajectory: [...prev.agent.trajectory.slice(-50), { x: data.agent_position[0], y: data.agent_position[1] }],
+              },
+            }))
           }
         } else if (data.type === 'training_complete') {
           setTrainingStatus('completed')
@@ -84,9 +160,8 @@ export default function TrainingPanel() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (ws) {
-        ws.close()
-      }
+      if (ws) ws.close()
+      if (simulationRef.current) cancelAnimationFrame(simulationRef.current)
     }
   }, [ws])
 
@@ -94,6 +169,145 @@ export default function TrainingPanel() {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false })
     setLogs(prev => [...prev.slice(-100), `[${timestamp}] ${message}`])
   }
+
+  // Run visual simulation
+  const runVisualSimulation = useCallback(() => {
+    stepRef.current = 0
+    episodeRef.current = 0
+    
+    // Reset agent position
+    setSimulation(prev => ({
+      ...prev,
+      agent: { x: 80, y: 300, vx: 0, vy: 0, trajectory: [] },
+      episodeReward: 0,
+      episodeStep: 0,
+      reachedGoal: false,
+    }))
+    
+    const simulate = () => {
+      if (training.status !== 'running') {
+        return
+      }
+      
+      setSimulation(prev => {
+        // Calculate direction to goal
+        const dx = prev.goal.x - prev.agent.x
+        const dy = prev.goal.y - prev.agent.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        
+        // Simulated policy output (improves over time based on training progress)
+        const trainingProgress = stepRef.current / totalTimesteps
+        const policyQuality = 0.3 + trainingProgress * 0.6 // Policy improves from 0.3 to 0.9
+        const noise = (1 - policyQuality) * (Math.random() - 0.5) * 2
+        
+        // Calculate desired velocity with noise
+        let nvx = (dx / dist) * 3 * policyQuality + noise * 3
+        let nvy = (dy / dist) * 3 * policyQuality + noise * 3
+        
+        // Add some smoothing
+        const vx = prev.agent.vx * 0.7 + nvx * 0.3
+        const vy = prev.agent.vy * 0.7 + nvy * 0.3
+        
+        let newX = prev.agent.x + vx * visualizationSpeed
+        let newY = prev.agent.y + vy * visualizationSpeed
+        
+        // Clamp to bounds
+        newX = Math.max(20, Math.min(780, newX))
+        newY = Math.max(20, Math.min(580, newY))
+        
+        // Check collision with obstacles
+        let collision = false
+        for (const obs of prev.obstacles) {
+          if (newX > obs.x - 15 && newX < obs.x + obs.w + 15 &&
+              newY > obs.y - 15 && newY < obs.y + obs.h + 15) {
+            collision = true
+            break
+          }
+        }
+        
+        // Calculate reward
+        let reward = -0.01 // Small step penalty
+        const newDist = Math.sqrt((prev.goal.x - newX) ** 2 + (prev.goal.y - newY) ** 2)
+        reward += (dist - newDist) * 0.1 // Reward for getting closer
+        
+        if (collision) {
+          reward -= 0.5 // Collision penalty
+          newX = prev.agent.x
+          newY = prev.agent.y
+        }
+        
+        // Check if reached goal
+        const reachedGoal = newDist < 40
+        if (reachedGoal) {
+          reward += 10 // Goal bonus
+        }
+        
+        const newEpisodeStep = prev.episodeStep + 1
+        const newEpisodeReward = prev.episodeReward + reward
+        
+        // Update trajectory (keep last 100 points)
+        const newTrajectory = [...prev.agent.trajectory.slice(-100), { x: newX, y: newY }]
+        
+        // Episode end conditions
+        const episodeEnd = reachedGoal || newEpisodeStep > 500 || collision
+        
+        if (episodeEnd) {
+          episodeRef.current += 1
+          
+          // Update training metrics
+          updateTrainingProgress(stepRef.current, episodeRef.current, newEpisodeReward)
+          updateTrainingMetrics({
+            meanReward: newEpisodeReward,
+            maxReward: Math.max(newEpisodeReward, training.metrics.maxReward),
+            episodeLength: newEpisodeStep,
+          })
+          
+          if (episodeRef.current % 5 === 0) {
+            const loss = 0.5 * Math.exp(-stepRef.current / (totalTimesteps * 0.3)) + Math.random() * 0.05
+            addToHistory(newEpisodeReward, loss)
+            updateTrainingMetrics({ loss })
+            addLog(`[TRAIN] Episode ${episodeRef.current} | Steps: ${newEpisodeStep} | Reward: ${newEpisodeReward.toFixed(2)} | ${reachedGoal ? '✓ GOAL' : collision ? '✗ Collision' : '⏱ Timeout'}`)
+          }
+          
+          // Reset for new episode
+          return {
+            ...prev,
+            agent: { 
+              x: 80, 
+              y: 250 + Math.random() * 100, 
+              vx: 0, 
+              vy: 0, 
+              trajectory: [] 
+            },
+            episodeReward: 0,
+            episodeStep: 0,
+            reachedGoal: false,
+          }
+        }
+        
+        stepRef.current += 1
+        
+        return {
+          ...prev,
+          agent: { x: newX, y: newY, vx, vy, trajectory: newTrajectory },
+          episodeReward: newEpisodeReward,
+          episodeStep: newEpisodeStep,
+          reachedGoal,
+        }
+      })
+      
+      // Check if training should end
+      if (stepRef.current >= totalTimesteps) {
+        setTrainingStatus('completed')
+        addLog('[SYSTEM] Training simulation completed')
+        return
+      }
+      
+      simulationRef.current = requestAnimationFrame(simulate)
+    }
+    
+    simulationRef.current = requestAnimationFrame(simulate)
+  }, [totalTimesteps, visualizationSpeed, updateTrainingProgress, updateTrainingMetrics, addToHistory, setTrainingStatus, training.status, training.metrics.maxReward])
 
   const handleStart = async () => {
     try {
@@ -105,9 +319,12 @@ export default function TrainingPanel() {
       // Reset previous training data
       resetTraining()
       setLogs([])
+      stepRef.current = 0
+      episodeRef.current = 0
       
       addLog(`[CONFIG] Environment: ${environment.type} (${environment.config})`)
       addLog(`[CONFIG] Algorithm: ${agent.algorithm}`)
+      addLog(`[CONFIG] Goal: ${goalText || 'Navigate to target'}`)
       addLog(`[CONFIG] Total timesteps: ${totalTimesteps.toLocaleString()}`)
       addLog('[SYSTEM] Starting training...')
       
@@ -155,83 +372,37 @@ export default function TrainingPanel() {
         setTrainingStatus('running')
         addLog(`[SYSTEM] Training session started: ${data.session_id}`)
       } else {
-        const error = await response.json()
-        addLog(`[ERROR] Failed to start: ${error.detail || 'Unknown error'}`)
-        // Run local simulation for demo
-        runLocalSimulation()
+        addLog('[WARN] Backend unavailable, running local simulation...')
+        setTrainingStatus('running')
+        runVisualSimulation()
       }
     } catch (error) {
       addLog('[WARN] Backend unavailable, running local simulation...')
-      runLocalSimulation()
+      setTrainingStatus('running')
+      runVisualSimulation()
     }
   }
 
-  // Local simulation for demo when backend is not available
-  const runLocalSimulation = () => {
-    setTrainingStatus('running')
-    addLog('[SYSTEM] Running local simulation mode')
-    
-    let step = 0
-    let episode = 0
-    let totalReward = 0
-    
-    const interval = setInterval(() => {
-      if (step >= totalTimesteps) {
-        clearInterval(interval)
-        setTrainingStatus('completed')
-        addLog('[SYSTEM] Training simulation completed')
-        return
-      }
-      
-      // Simulate training progress
-      step += Math.floor(Math.random() * 100) + 50
-      const reward = Math.random() * 10 - 2 + (step / totalTimesteps) * 5 // Improving rewards over time
-      const loss = 0.5 * Math.exp(-step / (totalTimesteps * 0.3)) + Math.random() * 0.05
-      
-      if (Math.random() < 0.1) {
-        episode += 1
-        totalReward = reward
-      } else {
-        totalReward += reward * 0.1
-      }
-      
-      updateTrainingProgress(step, episode, totalReward)
-      updateTrainingMetrics({
-        meanReward: reward,
-        maxReward: Math.max(reward, training.metrics.maxReward),
-        loss: loss,
-        episodeLength: Math.floor(Math.random() * 500) + 100,
-      })
-      
-      if (episode > 0 && Math.random() < 0.3) {
-        addToHistory(reward, loss)
-      }
-      
-      if (step % 5000 < 100) {
-        addLog(`[TRAIN] Step ${step.toLocaleString()} | Episode ${episode} | Reward: ${reward.toFixed(2)} | Loss: ${loss.toExponential(2)}`)
-      }
-    }, 50)
-    
-    // Store interval for cleanup
-    return () => clearInterval(interval)
-  }
+  // Effect to start/stop simulation based on training status
+  useEffect(() => {
+    if (training.status === 'running' && !simulationRef.current) {
+      runVisualSimulation()
+    } else if (training.status !== 'running' && simulationRef.current) {
+      cancelAnimationFrame(simulationRef.current)
+      simulationRef.current = null
+    }
+  }, [training.status, runVisualSimulation])
 
   const handlePause = async () => {
     if (isPaused) {
       setTrainingStatus('running')
       addLog('[SYSTEM] Training resumed')
-      if (training.sessionId) {
-        try {
-          await fetch(`${API_URL}/training/resume/${training.sessionId}`, { method: 'POST' })
-        } catch {}
-      }
     } else {
       setTrainingStatus('paused')
       addLog('[SYSTEM] Training paused')
-      if (training.sessionId) {
-        try {
-          await fetch(`${API_URL}/training/pause/${training.sessionId}`, { method: 'POST' })
-        } catch {}
+      if (simulationRef.current) {
+        cancelAnimationFrame(simulationRef.current)
+        simulationRef.current = null
       }
     }
   }
@@ -239,62 +410,21 @@ export default function TrainingPanel() {
   const handleStop = async () => {
     setTrainingStatus('idle')
     addLog('[SYSTEM] Training stopped')
-    if (training.sessionId) {
-      try {
-        await fetch(`${API_URL}/training/stop/${training.sessionId}`, { method: 'POST' })
-      } catch {}
+    if (simulationRef.current) {
+      cancelAnimationFrame(simulationRef.current)
+      simulationRef.current = null
     }
   }
 
   const progress = totalTimesteps > 0 ? (training.currentStep / totalTimesteps) * 100 : 0
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      {/* Top row - Configuration and Controls */}
-      <div className="flex gap-4">
-        {/* Training Configuration */}
-        <div className="flex-1 bg-[#0d1117] border border-[#30363d] rounded-md">
-          <div className="px-4 py-2 border-b border-[#30363d] flex items-center gap-2">
-            <Settings className="w-4 h-4 text-[#8b949e]" />
-            <span className="text-sm font-medium text-[#c9d1d9]">Training Configuration</span>
-          </div>
-          <div className="p-4 grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-[#8b949e] mb-1.5">Total Timesteps</label>
-              <input
-                type="number"
-                value={totalTimesteps}
-                onChange={(e) => setTotalTimesteps(parseInt(e.target.value) || 100000)}
-                className="w-full bg-[#161b22] border border-[#30363d] rounded px-3 py-1.5 text-sm text-[#c9d1d9] font-mono focus:border-[#58a6ff] focus:outline-none"
-                disabled={isTraining}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[#8b949e] mb-1.5">Eval Frequency</label>
-              <input
-                type="number"
-                value={evalFrequency}
-                onChange={(e) => setEvalFrequency(parseInt(e.target.value) || 1000)}
-                className="w-full bg-[#161b22] border border-[#30363d] rounded px-3 py-1.5 text-sm text-[#c9d1d9] font-mono focus:border-[#58a6ff] focus:outline-none"
-                disabled={isTraining}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[#8b949e] mb-1.5">Log Frequency</label>
-              <input
-                type="number"
-                value={logFrequency}
-                onChange={(e) => setLogFrequency(parseInt(e.target.value) || 100)}
-                className="w-full bg-[#161b22] border border-[#30363d] rounded px-3 py-1.5 text-sm text-[#c9d1d9] font-mono focus:border-[#58a6ff] focus:outline-none"
-                disabled={isTraining}
-              />
-            </div>
-          </div>
-        </div>
-
+    <div className="h-full flex gap-4">
+      {/* Left column - Controls and Config */}
+      <div className="w-80 flex flex-col gap-3">
         {/* Control Panel */}
-        <div className="w-80 bg-[#0d1117] border border-[#30363d] rounded-md">
-          <div className="px-4 py-2 border-b border-[#30363d] flex items-center justify-between">
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-md">
+          <div className="px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#8b949e]" />
               <span className="text-sm font-medium text-[#c9d1d9]">Control</span>
@@ -305,10 +435,10 @@ export default function TrainingPanel() {
                 connectionStatus === 'connecting' ? 'bg-[#d29922] animate-pulse' :
                 'bg-[#8b949e]'
               }`} />
-              <span className="text-xs text-[#8b949e]">{connectionStatus}</span>
+              <span className="text-[10px] text-[#8b949e]">{connectionStatus}</span>
             </div>
           </div>
-          <div className="p-4 space-y-4">
+          <div className="p-3 space-y-3">
             {/* Status */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#8b949e]">Status</span>
@@ -341,16 +471,16 @@ export default function TrainingPanel() {
               {canStart ? (
                 <button
                   onClick={handleStart}
-                  className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors"
                 >
                   <Play className="w-4 h-4" />
-                  Start
+                  Start Training
                 </button>
               ) : (
                 <>
                   <button
                     onClick={handlePause}
-                    className="flex-1 bg-[#30363d] hover:bg-[#484f58] text-[#c9d1d9] text-sm font-medium py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors"
+                    className="flex-1 bg-[#30363d] hover:bg-[#484f58] text-[#c9d1d9] text-sm font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors"
                   >
                     {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                     {isPaused ? 'Resume' : 'Pause'}
@@ -366,88 +496,263 @@ export default function TrainingPanel() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Middle row - Live Stats */}
-      <div className="grid grid-cols-5 gap-3">
-        <StatCard label="Steps" value={training.currentStep.toLocaleString()} icon={<Zap className="w-3.5 h-3.5" />} />
-        <StatCard label="Episodes" value={training.currentEpisode.toString()} icon={<Clock className="w-3.5 h-3.5" />} />
-        <StatCard 
-          label="Mean Reward" 
-          value={training.history.rewards.length > 0 ? training.metrics.meanReward.toFixed(3) : '--'} 
-          trend={training.metrics.meanReward > 0 ? 'up' : undefined}
-        />
-        <StatCard 
-          label="Loss" 
-          value={training.history.losses.length > 0 ? training.metrics.loss.toExponential(2) : '--'} 
-        />
-        <StatCard 
-          label="Ep. Length" 
-          value={training.metrics.episodeLength > 0 ? training.metrics.episodeLength.toFixed(0) : '--'} 
-        />
-      </div>
-
-      {/* Bottom row - Training Log */}
-      <div className="flex-1 min-h-0 bg-[#0d1117] border border-[#30363d] rounded-md flex flex-col">
-        <div className="px-4 py-2 border-b border-[#30363d] flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-[#8b949e]" />
-          <span className="text-sm font-medium text-[#c9d1d9]">Training Log</span>
-          <span className="text-xs text-[#8b949e] ml-auto">{logs.length} entries</span>
+        {/* Training Config */}
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-md">
+          <div className="px-3 py-2 border-b border-[#30363d] flex items-center gap-2">
+            <Settings className="w-4 h-4 text-[#8b949e]" />
+            <span className="text-sm font-medium text-[#c9d1d9]">Configuration</span>
+          </div>
+          <div className="p-3 space-y-3">
+            <div>
+              <label className="block text-[10px] text-[#8b949e] mb-1">Total Timesteps</label>
+              <input
+                type="number"
+                value={totalTimesteps}
+                onChange={(e) => setTotalTimesteps(parseInt(e.target.value) || 100000)}
+                className="w-full bg-[#161b22] border border-[#30363d] rounded px-2 py-1.5 text-xs text-[#c9d1d9] font-mono focus:border-[#58a6ff] focus:outline-none"
+                disabled={isTraining}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[#8b949e] mb-1">Visualization Speed</label>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.5"
+                value={visualizationSpeed}
+                onChange={(e) => setVisualizationSpeed(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] text-[#484f58]">
+                <span>0.5x</span>
+                <span className="text-[#58a6ff]">{visualizationSpeed}x</span>
+                <span>3x</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs">
-          {logs.length === 0 ? (
-            <div className="text-[#8b949e] text-center py-8">
-              No training logs yet. Start a training run to see output.
+
+        {/* Live Stats */}
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-md">
+          <div className="px-3 py-2 border-b border-[#30363d] flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[#8b949e]" />
+            <span className="text-sm font-medium text-[#c9d1d9]">Live Stats</span>
+          </div>
+          <div className="p-3 space-y-2">
+            <StatRow label="Steps" value={training.currentStep.toLocaleString()} />
+            <StatRow label="Episodes" value={training.currentEpisode.toString()} />
+            <StatRow label="Episode Reward" value={simulation.episodeReward.toFixed(2)} highlight={simulation.episodeReward > 0} />
+            <StatRow label="Mean Reward" value={training.metrics.meanReward > 0 ? training.metrics.meanReward.toFixed(2) : '--'} />
+            <StatRow label="Best Reward" value={training.metrics.maxReward > 0 ? training.metrics.maxReward.toFixed(2) : '--'} />
+          </div>
+        </div>
+
+        {/* Goal Display */}
+        {goalText && (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-md p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-4 h-4 text-[#3fb950]" />
+              <span className="text-xs font-medium text-[#c9d1d9]">Active Goal</span>
             </div>
-          ) : (
-            <div className="space-y-0.5">
-              {logs.map((log, i) => (
-                <div 
-                  key={i} 
-                  className={`${
-                    log.includes('[ERROR]') ? 'text-[#f85149]' :
-                    log.includes('[WARN]') ? 'text-[#d29922]' :
-                    log.includes('[SYSTEM]') ? 'text-[#58a6ff]' :
-                    log.includes('[CONFIG]') ? 'text-[#a371f7]' :
-                    'text-[#8b949e]'
-                  }`}
-                >
-                  {log}
-                </div>
+            <p className="text-[10px] text-[#8b949e]">{goalText}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Center - Visualization */}
+      <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 bg-[#0d1117] border border-[#30363d] rounded-md flex flex-col">
+          <div className="px-3 py-2 border-b border-[#30363d] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-[#8b949e]" />
+              <span className="text-sm font-medium text-[#c9d1d9]">Live Training Visualization</span>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-[#8b949e]">
+              <span>Episode: <span className="text-[#c9d1d9] font-mono">{training.currentEpisode}</span></span>
+              <span>Step: <span className="text-[#c9d1d9] font-mono">{simulation.episodeStep}</span></span>
+            </div>
+          </div>
+          <div className="flex-1 bg-[#010409] relative overflow-hidden">
+            <svg viewBox="0 0 800 600" className="w-full h-full">
+              {/* Background grid */}
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#21262d" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="800" height="600" fill="url(#grid)" />
+              
+              {/* Trajectory */}
+              {simulation.agent.trajectory.length > 1 && (
+                <polyline
+                  points={simulation.agent.trajectory.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                  stroke="#58a6ff"
+                  strokeWidth="1.5"
+                  strokeOpacity="0.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+              
+              {/* Obstacles */}
+              {simulation.obstacles.map((obs, i) => (
+                <rect
+                  key={i}
+                  x={obs.x}
+                  y={obs.y}
+                  width={obs.w}
+                  height={obs.h}
+                  fill="#21262d"
+                  stroke="#30363d"
+                  strokeWidth="1"
+                />
               ))}
-            </div>
-          )}
+              
+              {/* Goal */}
+              <g>
+                <circle
+                  cx={simulation.goal.x}
+                  cy={simulation.goal.y}
+                  r="35"
+                  fill="none"
+                  stroke="#238636"
+                  strokeWidth="2"
+                  strokeDasharray="4 2"
+                  opacity="0.5"
+                />
+                <circle
+                  cx={simulation.goal.x}
+                  cy={simulation.goal.y}
+                  r="20"
+                  fill="#238636"
+                  fillOpacity="0.3"
+                />
+                <circle
+                  cx={simulation.goal.x}
+                  cy={simulation.goal.y}
+                  r="8"
+                  fill="#3fb950"
+                />
+                <text
+                  x={simulation.goal.x}
+                  y={simulation.goal.y + 55}
+                  textAnchor="middle"
+                  fill="#3fb950"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
+                  GOAL
+                </text>
+              </g>
+              
+              {/* Agent */}
+              <g>
+                {/* Agent body */}
+                <circle
+                  cx={simulation.agent.x}
+                  cy={simulation.agent.y}
+                  r="12"
+                  fill="#58a6ff"
+                  fillOpacity="0.3"
+                  stroke="#58a6ff"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx={simulation.agent.x}
+                  cy={simulation.agent.y}
+                  r="5"
+                  fill="#58a6ff"
+                />
+                {/* Velocity indicator */}
+                {(simulation.agent.vx !== 0 || simulation.agent.vy !== 0) && (
+                  <line
+                    x1={simulation.agent.x}
+                    y1={simulation.agent.y}
+                    x2={simulation.agent.x + simulation.agent.vx * 5}
+                    y2={simulation.agent.y + simulation.agent.vy * 5}
+                    stroke="#58a6ff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                )}
+              </g>
+              
+              {/* Status overlay */}
+              {!isTraining && !isPaused && (
+                <g>
+                  <rect x="0" y="0" width="800" height="600" fill="#010409" fillOpacity="0.7" />
+                  <text x="400" y="290" textAnchor="middle" fill="#8b949e" fontSize="14" fontFamily="sans-serif">
+                    Click "Start Training" to begin
+                  </text>
+                  <text x="400" y="315" textAnchor="middle" fill="#484f58" fontSize="11" fontFamily="sans-serif">
+                    Agent will learn to reach the goal
+                  </text>
+                </g>
+              )}
+              
+              {/* Training info overlay */}
+              {isTraining && (
+                <g>
+                  <rect x="10" y="10" width="140" height="50" rx="4" fill="#0d1117" fillOpacity="0.9" stroke="#30363d" />
+                  <text x="20" y="30" fill="#8b949e" fontSize="10" fontFamily="monospace">
+                    Episode: <tspan fill="#c9d1d9">{training.currentEpisode}</tspan>
+                  </text>
+                  <text x="20" y="48" fill="#8b949e" fontSize="10" fontFamily="monospace">
+                    Reward: <tspan fill={simulation.episodeReward > 0 ? '#3fb950' : '#f85149'}>{simulation.episodeReward.toFixed(2)}</tspan>
+                  </text>
+                </g>
+              )}
+            </svg>
+          </div>
+        </div>
+
+        {/* Training Log */}
+        <div className="h-40 bg-[#0d1117] border border-[#30363d] rounded-md flex flex-col">
+          <div className="px-3 py-2 border-b border-[#30363d] flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-[#8b949e]" />
+            <span className="text-sm font-medium text-[#c9d1d9]">Training Log</span>
+            <span className="text-[10px] text-[#8b949e] ml-auto">{logs.length} entries</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 font-mono text-[10px]">
+            {logs.length === 0 ? (
+              <div className="text-[#8b949e] text-center py-4">
+                Logs will appear here during training
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {logs.map((log, i) => (
+                  <div 
+                    key={i} 
+                    className={`${
+                      log.includes('[ERROR]') ? 'text-[#f85149]' :
+                      log.includes('[WARN]') ? 'text-[#d29922]' :
+                      log.includes('[SYSTEM]') ? 'text-[#58a6ff]' :
+                      log.includes('[CONFIG]') ? 'text-[#a371f7]' :
+                      log.includes('✓ GOAL') ? 'text-[#3fb950]' :
+                      log.includes('✗') ? 'text-[#f85149]' :
+                      'text-[#8b949e]'
+                    }`}
+                  >
+                    {log}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function StatCard({ 
-  label, 
-  value, 
-  icon,
-  trend 
-}: { 
-  label: string
-  value: string
-  icon?: React.ReactNode
-  trend?: 'up' | 'down' 
-}) {
+function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2">
-      <div className="flex items-center gap-1.5 text-[#8b949e] mb-1">
-        {icon}
-        <span className="text-xs">{label}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-lg font-mono font-semibold text-[#c9d1d9]">{value}</span>
-        {trend && (
-          <span className={trend === 'up' ? 'text-[#3fb950] text-xs' : 'text-[#f85149] text-xs'}>
-            {trend === 'up' ? '↑' : '↓'}
-          </span>
-        )}
-      </div>
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] text-[#8b949e]">{label}</span>
+      <span className={`text-xs font-mono ${highlight ? 'text-[#3fb950]' : 'text-[#c9d1d9]'}`}>{value}</span>
     </div>
   )
 }
