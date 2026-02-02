@@ -1,0 +1,31 @@
+{
+  "name": "Platformer SAC Example",
+  "description": "Train a SAC agent to complete a 2D platformer level",
+  "environment": {
+    "type": "platformer",
+    "width": 30.0,
+    "height": 15.0,
+    "gravity": 0.5,
+    "jump_force": 3.0,
+    "seed": 42
+  },
+  "agent": {
+    "algorithm": "sac",
+    "learning_rate": 0.0003,
+    "gamma": 0.99,
+    "tau": 0.005,
+    "alpha": 0.2,
+    "auto_alpha": true,
+    "buffer_size": 100000,
+    "batch_size": 256,
+    "hidden_dims": [256, 256]
+  },
+  "training": {
+    "total_timesteps": 200000,
+    "eval_freq": 5000,
+    "log_freq": 100,
+    "save_freq": 20000,
+    "render_freq": 5
+  }
+}
+
