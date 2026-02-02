@@ -19,6 +19,24 @@ interface TrainingState {
   }
 }
 
+interface MetricsDataPoint {
+  step: number
+  episode: number
+  reward: number
+  loss?: number
+  epsilon?: number
+  fps?: number
+  timestamp: number
+  [key: string]: number | undefined
+}
+
+interface VisualizationState {
+  agentPosition: [number, number]
+  goalPosition: [number, number]
+  obstacles?: Array<{ x: number; y: number; width: number; height: number }>
+  trajectory?: Array<[number, number]>
+}
+
 interface EnvironmentState {
   type: string
   config: string
@@ -43,14 +61,31 @@ interface AgentState {
 }
 
 interface AppState {
+  // UI state
+  activeTab: string
+  setActiveTab: (tab: string) => void
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
+
   // Training state
   training: TrainingState
+  isTraining: boolean
+  setIsTraining: (isTraining: boolean) => void
   setTrainingStatus: (status: TrainingState['status']) => void
   setSessionId: (id: string | null) => void
   updateTrainingMetrics: (metrics: Partial<TrainingState['metrics']>) => void
   updateTrainingProgress: (step: number, episode: number, reward: number) => void
   addToHistory: (reward: number, loss: number) => void
   resetTraining: () => void
+
+  // Metrics data for charts
+  metricsData: MetricsDataPoint[]
+  addMetricsData: (data: MetricsDataPoint) => void
+  clearMetricsData: () => void
+
+  // Visualization state
+  visualization: VisualizationState
+  setVisualizationState: (state: Partial<VisualizationState>) => void
 
   // Environment state
   environment: EnvironmentState
@@ -74,6 +109,12 @@ interface AppState {
   // Goal text
   goalText: string
   setGoalText: (text: string) => void
+
+  // Playback controls
+  playbackSpeed: number
+  setPlaybackSpeed: (speed: number) => void
+  isPlaying: boolean
+  setIsPlaying: (playing: boolean) => void
 }
 
 const initialTrainingState: TrainingState = {
@@ -93,6 +134,13 @@ const initialTrainingState: TrainingState = {
     losses: [],
     steps: [],
   },
+}
+
+const initialVisualizationState: VisualizationState = {
+  agentPosition: [100, 300],
+  goalPosition: [700, 300],
+  obstacles: [],
+  trajectory: [],
 }
 
 const initialEnvironmentState: EnvironmentState = {
@@ -158,10 +206,21 @@ const initialAgentState: AgentState = {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  // UI state
+  activeTab: 'environment',
+  setActiveTab: (activeTab) => set({ activeTab }),
+  sidebarCollapsed: false,
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+
   // Training state
   training: initialTrainingState,
+  isTraining: false,
+  setIsTraining: (isTraining) => set({ isTraining }),
   setTrainingStatus: (status) =>
-    set((state) => ({ training: { ...state.training, status } })),
+    set((state) => ({
+      training: { ...state.training, status },
+      isTraining: status === 'running',
+    })),
   setSessionId: (sessionId) =>
     set((state) => ({ training: { ...state.training, sessionId } })),
   updateTrainingMetrics: (metrics) =>
@@ -185,13 +244,39 @@ export const useStore = create<AppState>((set, get) => ({
       training: {
         ...state.training,
         history: {
-          rewards: [...state.training.history.rewards, reward],
-          losses: [...state.training.history.losses, loss],
-          steps: [...state.training.history.steps, state.training.currentStep],
+          rewards: [...state.training.history.rewards.slice(-499), reward],
+          losses: [...state.training.history.losses.slice(-499), loss],
+          steps: [...state.training.history.steps.slice(-499), state.training.currentStep],
         },
       },
     })),
-  resetTraining: () => set({ training: initialTrainingState }),
+  resetTraining: () =>
+    set({
+      training: initialTrainingState,
+      isTraining: false,
+      metricsData: [],
+    }),
+
+  // Metrics data
+  metricsData: [],
+  addMetricsData: (data) =>
+    set((state) => ({
+      metricsData: [...state.metricsData.slice(-499), data],
+      training: {
+        ...state.training,
+        currentStep: data.step,
+        currentEpisode: data.episode,
+        totalReward: state.training.totalReward + data.reward,
+      },
+    })),
+  clearMetricsData: () => set({ metricsData: [] }),
+
+  // Visualization state
+  visualization: initialVisualizationState,
+  setVisualizationState: (newState) =>
+    set((state) => ({
+      visualization: { ...state.visualization, ...newState },
+    })),
 
   // Environment state
   environment: initialEnvironmentState,
@@ -246,5 +331,10 @@ export const useStore = create<AppState>((set, get) => ({
   // Goal
   goalText: '',
   setGoalText: (goalText) => set({ goalText }),
-}))
 
+  // Playback controls
+  playbackSpeed: 1,
+  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
+  isPlaying: true,
+  setIsPlaying: (isPlaying) => set({ isPlaying }),
+}))
