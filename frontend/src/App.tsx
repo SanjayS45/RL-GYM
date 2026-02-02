@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Brain, Play, BarChart3, Layers, Database, Settings, Activity } from 'lucide-react'
 
-import Header from './components/Header'
-import Sidebar from './components/Sidebar'
 import EnvironmentPanel from './components/panels/EnvironmentPanel'
 import AgentPanel from './components/panels/AgentPanel'
 import TrainingPanel from './components/panels/TrainingPanel'
