@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layers, Grid, Navigation, Gamepad2, Settings, Target, Sparkles } from 'lucide-react'
+import { Layers, Grid, Navigation, Gamepad2, Settings, Target, Sparkles, Check, Send } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 
 const environments = [
@@ -40,6 +40,8 @@ const goalPresets = [
 export default function EnvironmentPanel() {
   const { environment, setEnvironmentType, setEnvironmentConfig, goalText, setGoalText, updateEnvironmentState } = useStore()
   const [selectedEnv, setSelectedEnv] = useState(environment.type || 'navigation')
+  const [goalSubmitted, setGoalSubmitted] = useState(false)
+  const [localGoalText, setLocalGoalText] = useState(goalText)
 
   const handleEnvSelect = (envId: string) => {
     setSelectedEnv(envId)
@@ -195,11 +197,44 @@ export default function EnvironmentPanel() {
               Define the agent's objective. This will be converted to a reward function.
             </p>
             <textarea
-              value={goalText}
-              onChange={(e) => setGoalText(e.target.value)}
+              value={localGoalText}
+              onChange={(e) => {
+                setLocalGoalText(e.target.value)
+                setGoalSubmitted(false)
+              }}
               placeholder="Describe what the agent should accomplish...&#10;&#10;Example: Navigate to the target while avoiding obstacles and minimizing path length."
-              className="flex-1 bg-[#161b22] border border-[#30363d] rounded px-3 py-2 text-xs text-[#c9d1d9] resize-none focus:border-[#58a6ff] focus:outline-none placeholder:text-[#484f58]"
+              className={`flex-1 bg-[#161b22] border rounded px-3 py-2 text-xs text-[#c9d1d9] resize-none focus:border-[#58a6ff] focus:outline-none placeholder:text-[#484f58] ${
+                goalSubmitted ? 'border-[#238636]' : 'border-[#30363d]'
+              }`}
             />
+            
+            {/* Submit button */}
+            <button
+              onClick={() => {
+                setGoalText(localGoalText)
+                setGoalSubmitted(true)
+              }}
+              disabled={!localGoalText.trim() || (goalSubmitted && localGoalText === goalText)}
+              className={`mt-2 w-full py-2 px-3 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
+                goalSubmitted && localGoalText === goalText
+                  ? 'bg-[#238636]/20 text-[#3fb950] border border-[#238636]/30'
+                  : localGoalText.trim()
+                    ? 'bg-[#238636] hover:bg-[#2ea043] text-white'
+                    : 'bg-[#21262d] text-[#484f58] cursor-not-allowed'
+              }`}
+            >
+              {goalSubmitted && localGoalText === goalText ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Goal Configured
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  Apply Goal to Training
+                </>
+              )}
+            </button>
             
             {/* Parsed reward components */}
             <div className="mt-3 p-2 bg-[#161b22] rounded border border-[#30363d]">
@@ -208,17 +243,23 @@ export default function EnvironmentPanel() {
                 Parsed Reward Components
               </div>
               <div className="text-[10px] font-mono">
-                {goalText ? (
+                {localGoalText ? (
                   <div className="space-y-0.5">
                     <div className="text-[#3fb950]">+ Distance to goal (primary)</div>
-                    {goalText.toLowerCase().includes('avoid') && (
+                    {localGoalText.toLowerCase().includes('avoid') && (
                       <div className="text-[#f85149]">- Collision penalty</div>
                     )}
-                    {(goalText.toLowerCase().includes('short') || goalText.toLowerCase().includes('minim')) && (
+                    {(localGoalText.toLowerCase().includes('short') || localGoalText.toLowerCase().includes('minim')) && (
                       <div className="text-[#d29922]">- Step penalty (efficiency)</div>
                     )}
-                    {goalText.toLowerCase().includes('surviv') && (
+                    {localGoalText.toLowerCase().includes('surviv') && (
                       <div className="text-[#58a6ff]">+ Survival bonus</div>
+                    )}
+                    {localGoalText.toLowerCase().includes('fast') && (
+                      <div className="text-[#d29922]">- Time penalty (speed)</div>
+                    )}
+                    {localGoalText.toLowerCase().includes('safe') && (
+                      <div className="text-[#58a6ff]">+ Safety bonus</div>
                     )}
                   </div>
                 ) : (
@@ -238,7 +279,11 @@ export default function EnvironmentPanel() {
             {goalPresets.map((preset, i) => (
               <button
                 key={i}
-                onClick={() => setGoalText(preset.text)}
+                onClick={() => {
+                  setLocalGoalText(preset.text)
+                  setGoalText(preset.text)
+                  setGoalSubmitted(true)
+                }}
                 className="w-full text-left px-2 py-1.5 text-[10px] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#161b22] rounded transition-colors flex items-center justify-between"
               >
                 <span>{preset.text}</span>
