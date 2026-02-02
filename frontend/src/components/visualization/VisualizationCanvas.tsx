@@ -1,262 +1,292 @@
-import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Play, Pause, FastForward, Rewind, Maximize2, RefreshCw } from 'lucide-react'
-import { useStore } from '../../store/useStore'
+/**
+ * Visualization Canvas Component
+ * Renders the real-time visualization of the training environment
+ */
 
-interface AgentState {
-  position: [number, number]
-  velocity: [number, number]
-  size: [number, number]
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useStore } from '../../store/useStore';
+
+interface VisualizationCanvasProps {
+  width?: number;
+  height?: number;
+  className?: string;
 }
 
-interface EnvironmentState {
-  width: number
-  height: number
-  agent: AgentState
-  obstacles: any[]
-  goals: any[]
-}
+export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
+  width = 800,
+  height = 600,
+  className = '',
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
 
-export default function VisualizationCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { training, environment } = useStore()
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
-  const [isPaused, setIsPaused] = useState(false)
-  const [showTrails, setShowTrails] = useState(true)
+  const {
+    visualization,
+    environment,
+    isTraining,
+    isPlaying,
+    playbackSpeed,
+  } = useStore();
 
-  // Animation state
-  const [agentPos, setAgentPos] = useState<[number, number]>([100, 300])
-  const [trails, setTrails] = useState<[number, number][]>([])
-  const animationRef = useRef<number>()
+  /**
+   * Draw the environment background
+   */
+  const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
+    // Dark gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, '#0a0a0f');
+    gradient.addColorStop(1, '#141420');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
 
-  // Simulate agent movement
-  useEffect(() => {
-    if (isPaused || training.status !== 'running') return
+    // Grid pattern
+    ctx.strokeStyle = 'rgba(100, 255, 218, 0.05)';
+    ctx.lineWidth = 1;
 
-    const animate = () => {
-      setAgentPos((prev) => {
-        // Simple wandering behavior for demo
-        const newX = prev[0] + (Math.random() - 0.4) * 5 * playbackSpeed
-        const newY = prev[1] + (Math.random() - 0.5) * 5 * playbackSpeed
+    const gridSize = 40;
+    for (let x = 0; x <= width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }, [width, height]);
 
-        // Clamp to bounds
-        const clampedX = Math.max(20, Math.min(780, newX))
-        const clampedY = Math.max(20, Math.min(580, newY))
+  /**
+   * Draw obstacles
+   */
+  const drawObstacles = useCallback((ctx: CanvasRenderingContext2D) => {
+    const obstacles = visualization.obstacles || environment.obstacles || [];
 
-        // Add to trails
-        if (showTrails) {
-          setTrails((t) => [...t.slice(-50), [clampedX, clampedY]])
-        }
+    obstacles.forEach((obstacle) => {
+      const x = obstacle.x || obstacle.position?.[0] || 0;
+      const y = obstacle.y || obstacle.position?.[1] || 0;
+      const w = obstacle.width || obstacle.size?.[0] || 20;
+      const h = obstacle.height || obstacle.size?.[1] || 20;
 
-        return [clampedX, clampedY]
-      })
+      // Obstacle glow
+      ctx.shadowColor = '#ff6b6b';
+      ctx.shadowBlur = 10;
 
-      animationRef.current = requestAnimationFrame(animate)
+      // Obstacle body
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
+      ctx.fillRect(x, y, w, h);
+
+      // Obstacle border
+      ctx.strokeStyle = '#ff6b6b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.shadowBlur = 0;
+    });
+  }, [visualization.obstacles, environment.obstacles]);
+
+  /**
+   * Draw the goal
+   */
+  const drawGoal = useCallback((ctx: CanvasRenderingContext2D) => {
+    const goalPos = visualization.goalPosition || environment.goals?.[0]?.position || [700, 300];
+    const [gx, gy] = goalPos;
+    const goalSize = 40;
+
+    // Goal glow
+    ctx.shadowColor = '#4ecdc4';
+    ctx.shadowBlur = 20;
+
+    // Pulsing effect
+    const pulse = Math.sin(Date.now() / 200) * 5 + goalSize;
+
+    // Goal circle
+    ctx.beginPath();
+    ctx.arc(gx, gy, pulse / 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(78, 205, 196, 0.3)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(gx, gy, goalSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#4ecdc4';
+    ctx.fill();
+
+    // Goal inner circle
+    ctx.beginPath();
+    ctx.arc(gx, gy, goalSize / 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+  }, [visualization.goalPosition, environment.goals]);
+
+  /**
+   * Draw the agent trajectory
+   */
+  const drawTrajectory = useCallback((ctx: CanvasRenderingContext2D) => {
+    const trajectory = visualization.trajectory || [];
+
+    if (trajectory.length < 2) return;
+
+    ctx.strokeStyle = 'rgba(100, 255, 218, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(trajectory[0][0], trajectory[0][1]);
+
+    for (let i = 1; i < trajectory.length; i++) {
+      const opacity = (i / trajectory.length) * 0.5 + 0.1;
+      ctx.strokeStyle = `rgba(100, 255, 218, ${opacity})`;
+      ctx.lineTo(trajectory[i][0], trajectory[i][1]);
     }
 
-    animationRef.current = requestAnimationFrame(animate)
+    ctx.stroke();
+  }, [visualization.trajectory]);
 
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-    }
-  }, [isPaused, playbackSpeed, showTrails, training.status])
-
-  // Draw on canvas
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // Clear canvas
-    ctx.fillStyle = 'rgba(15, 15, 35, 1)'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // Draw grid
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.1)'
-    ctx.lineWidth = 1
-    for (let x = 0; x <= canvas.width; x += 30) {
-      ctx.beginPath()
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, canvas.height)
-      ctx.stroke()
-    }
-    for (let y = 0; y <= canvas.height; y += 30) {
-      ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(canvas.width, y)
-      ctx.stroke()
-    }
-
-    // Draw obstacles
-    ctx.fillStyle = 'rgba(100, 100, 100, 0.5)'
-    ctx.strokeStyle = 'rgba(150, 150, 150, 0.8)'
-    ctx.lineWidth = 2
-    
-    // Sample obstacles
-    const obstacles = [
-      { x: 280, y: 150, w: 100, h: 200 },
-      { x: 450, y: 350, w: 150, h: 100 },
-    ]
-    obstacles.forEach((obs) => {
-      ctx.fillRect(obs.x, obs.y, obs.w, obs.h)
-      ctx.strokeRect(obs.x, obs.y, obs.w, obs.h)
-    })
-
-    // Draw goal
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.3)'
-    ctx.strokeStyle = '#10b981'
-    ctx.lineWidth = 2
-    ctx.fillRect(680, 260, 60, 60)
-    ctx.strokeRect(680, 260, 60, 60)
-    
-    // Goal pulse effect
-    ctx.beginPath()
-    ctx.arc(710, 290, 20 + Math.sin(Date.now() / 200) * 5, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)'
-    ctx.stroke()
-
-    // Draw trails
-    if (showTrails && trails.length > 1) {
-      ctx.beginPath()
-      ctx.moveTo(trails[0][0], trails[0][1])
-      trails.forEach((point, i) => {
-        ctx.lineTo(point[0], point[1])
-      })
-      ctx.strokeStyle = 'rgba(0, 217, 255, 0.3)'
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
-
-    // Draw agent
-    ctx.beginPath()
-    ctx.arc(agentPos[0], agentPos[1], 15, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(0, 217, 255, 0.5)'
-    ctx.fill()
-    ctx.strokeStyle = '#00d9ff'
-    ctx.lineWidth = 3
-    ctx.stroke()
+  /**
+   * Draw the agent
+   */
+  const drawAgent = useCallback((ctx: CanvasRenderingContext2D) => {
+    const [ax, ay] = visualization.agentPosition || environment.agentPosition || [100, 300];
+    const agentSize = 24;
 
     // Agent glow
-    const gradient = ctx.createRadialGradient(
-      agentPos[0], agentPos[1], 0,
-      agentPos[0], agentPos[1], 30
-    )
-    gradient.addColorStop(0, 'rgba(0, 217, 255, 0.3)')
-    gradient.addColorStop(1, 'rgba(0, 217, 255, 0)')
-    ctx.fillStyle = gradient
-    ctx.beginPath()
-    ctx.arc(agentPos[0], agentPos[1], 30, 0, Math.PI * 2)
-    ctx.fill()
+    ctx.shadowColor = '#64ffda';
+    ctx.shadowBlur = 15;
 
-  }, [agentPos, trails, showTrails])
+    // Agent body (triangle pointing right by default)
+    ctx.fillStyle = '#64ffda';
+    ctx.beginPath();
+    ctx.moveTo(ax + agentSize, ay);
+    ctx.lineTo(ax - agentSize / 2, ay - agentSize / 2);
+    ctx.lineTo(ax - agentSize / 2, ay + agentSize / 2);
+    ctx.closePath();
+    ctx.fill();
 
-  const handleReset = () => {
-    setAgentPos([100, 300])
-    setTrails([])
-  }
+    // Agent core
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(ax, ay, agentSize / 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+  }, [visualization.agentPosition, environment.agentPosition]);
+
+  /**
+   * Draw status overlay
+   */
+  const drawStatus = useCallback((ctx: CanvasRenderingContext2D) => {
+    // Status indicator
+    ctx.font = '14px "JetBrains Mono", monospace';
+    ctx.fillStyle = isTraining ? '#64ffda' : '#888';
+    ctx.fillText(
+      isTraining ? (isPlaying ? '● TRAINING' : '◐ PAUSED') : '○ IDLE',
+      20,
+      30
+    );
+
+    // Speed indicator
+    if (isTraining) {
+      ctx.fillStyle = '#888';
+      ctx.fillText(`Speed: ${playbackSpeed}x`, 20, 50);
+    }
+  }, [isTraining, isPlaying, playbackSpeed]);
+
+  /**
+   * Main render function
+   */
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear and draw
+    ctx.clearRect(0, 0, width, height);
+
+    drawBackground(ctx);
+    drawObstacles(ctx);
+    drawTrajectory(ctx);
+    drawGoal(ctx);
+    drawAgent(ctx);
+    drawStatus(ctx);
+
+    // Continue animation loop
+    if (isTraining && isPlaying) {
+      animationFrameRef.current = requestAnimationFrame(render);
+    }
+  }, [
+    width,
+    height,
+    drawBackground,
+    drawObstacles,
+    drawTrajectory,
+    drawGoal,
+    drawAgent,
+    drawStatus,
+    isTraining,
+    isPlaying,
+  ]);
+
+  // Start/stop animation loop
+  useEffect(() => {
+    render();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [render]);
+
+  // Re-render on visualization state changes
+  useEffect(() => {
+    render();
+  }, [visualization, environment, render]);
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsPaused(!isPaused)}
-            className="p-2 bg-surface-200 hover:bg-surface-100 rounded-lg transition-colors"
-          >
-            {isPaused ? (
-              <Play className="w-5 h-5 text-accent-cyan" />
-            ) : (
-              <Pause className="w-5 h-5 text-accent-cyan" />
-            )}
-          </button>
-          
-          <button
-            onClick={handleReset}
-            className="p-2 bg-surface-200 hover:bg-surface-100 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-5 h-5 text-gray-400" />
-          </button>
+    <div className={`relative ${className}`}>
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        className="rounded-lg border border-primary/20"
+        style={{
+          background: 'linear-gradient(180deg, #0a0a0f 0%, #141420 100%)',
+        }}
+      />
 
-          <div className="h-8 w-px bg-gray-700 mx-2" />
+      {/* Overlay controls */}
+      <div className="absolute bottom-4 right-4 flex gap-2">
+        <div className="bg-surface/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs text-secondary border border-primary/20">
+          {width} × {height}
+        </div>
+      </div>
 
-          <div className="flex items-center gap-2 bg-surface-200 rounded-lg p-1">
-            <button
-              onClick={() => setPlaybackSpeed(Math.max(0.25, playbackSpeed - 0.25))}
-              className="p-1 hover:bg-surface-100 rounded"
-            >
-              <Rewind className="w-4 h-4 text-gray-400" />
-            </button>
-            <span className="text-sm font-mono text-white w-12 text-center">
-              {playbackSpeed}x
-            </span>
-            <button
-              onClick={() => setPlaybackSpeed(Math.min(4, playbackSpeed + 0.25))}
-              className="p-1 hover:bg-surface-100 rounded"
-            >
-              <FastForward className="w-4 h-4 text-gray-400" />
-            </button>
+      {/* Legend */}
+      <div className="absolute top-4 right-4 bg-surface/80 backdrop-blur-sm p-3 rounded-lg border border-primary/20">
+        <div className="text-xs space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-primary rounded-full" />
+            <span className="text-secondary">Agent</span>
           </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showTrails}
-              onChange={(e) => setShowTrails(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-surface-300 text-accent-cyan focus:ring-accent-cyan/50"
-            />
-            <span className="text-sm text-gray-400">Show trails</span>
-          </label>
-
-          <button className="p-2 bg-surface-200 hover:bg-surface-100 rounded-lg transition-colors">
-            <Maximize2 className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div className="flex-1 panel p-0 overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={600}
-          className="w-full h-full object-contain"
-          style={{ imageRendering: 'pixelated' }}
-        />
-      </div>
-
-      {/* Info bar */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4">
-          <span className="text-gray-400">
-            Position:{' '}
-            <span className="font-mono text-accent-cyan">
-              ({agentPos[0].toFixed(0)}, {agentPos[1].toFixed(0)})
-            </span>
-          </span>
-          <span className="text-gray-400">
-            Step:{' '}
-            <span className="font-mono text-accent-purple">
-              {training.currentStep}
-            </span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-accent-cyan" />
-          <span className="text-gray-400">Agent</span>
-          <div className="w-3 h-3 rounded-full bg-accent-green ml-4" />
-          <span className="text-gray-400">Goal</span>
-          <div className="w-3 h-3 rounded-full bg-gray-500 ml-4" />
-          <span className="text-gray-400">Obstacle</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-accent rounded-full" />
+            <span className="text-secondary">Goal</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-danger rounded" />
+            <span className="text-secondary">Obstacle</span>
+          </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
+export default VisualizationCanvas;
