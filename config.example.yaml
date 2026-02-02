@@ -1,0 +1,93 @@
+# RL-GYM Configuration Example
+# Copy this file to config.yaml and customize as needed
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  workers: 1
+
+# Environment Settings
+environment:
+  default_type: "navigation"
+  max_episode_steps: 1000
+  render_mode: null
+
+# Training Settings
+training:
+  default_algorithm: "ppo"
+  default_timesteps: 100000
+  max_concurrent_sessions: 5
+  log_interval: 100
+  eval_interval: 1000
+  save_interval: 10000
+
+# Algorithm Defaults
+algorithms:
+  dqn:
+    learning_rate: 0.001
+    gamma: 0.99
+    epsilon_start: 1.0
+    epsilon_end: 0.01
+    epsilon_decay: 0.995
+    buffer_size: 10000
+    batch_size: 64
+    target_update_freq: 100
+  
+  ppo:
+    learning_rate: 0.0003
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_epsilon: 0.2
+    value_coef: 0.5
+    entropy_coef: 0.01
+    n_steps: 2048
+    n_epochs: 10
+    batch_size: 64
+  
+  sac:
+    learning_rate: 0.0003
+    gamma: 0.99
+    tau: 0.005
+    alpha: 0.2
+    auto_alpha: true
+    buffer_size: 100000
+    batch_size: 256
+  
+  a2c:
+    learning_rate: 0.0007
+    gamma: 0.99
+    value_coef: 0.5
+    entropy_coef: 0.01
+    n_steps: 5
+    max_grad_norm: 0.5
+
+# Paths
+paths:
+  data_dir: "./data"
+  models_dir: "./models"
+  logs_dir: "./logs"
+  checkpoints_dir: "./checkpoints"
+
+# CORS Settings
+cors:
+  origins:
+    - "http://localhost:5173"
+    - "http://localhost:3000"
+  allow_credentials: true
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # Set to a file path to enable file logging
+
+# Visualization
+visualization:
+  fps: 30
+  buffer_frames: 500
+  default_speed: 1.0
+
