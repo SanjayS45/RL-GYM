@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "name": "PPO Navigation Continuous Control",
+    "type": "rollouts",
+    "algorithm": "PPO",
+    "environment": "navigation",
+    "config": "simple_obstacles",
+    "total_rollouts": 50,
+    "steps_per_rollout": 2048,
+    "total_samples": 102400,
+    "observation_space": {
+      "type": "Box",
+      "shape": [8],
+      "description": ["pos_x", "pos_y", "vel_x", "vel_y", "goal_x", "goal_y", "dist_to_goal", "heading"]
+    },
+    "action_space": {
+      "type": "Box",
+      "shape": [2],
+      "low": -1.0,
+      "high": 1.0,
+      "description": ["thrust_x", "thrust_y"]
+    },
+    "hyperparameters": {
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "learning_rate": 0.0003
+    },
+    "created_at": "2024-01-20",
+    "description": "PPO rollout data for continuous 2D navigation. Includes log probabilities and value estimates for policy gradient training."
+  },
+  "rollouts": [
+    {
+      "rollout_id": 0,
+      "episode_return": 45.23,
+      "episode_length": 256,
+      "samples": [
+        {"obs": [0.10, 0.50, 0.0, 0.0, 0.90, 0.50, 0.80, 0.0], "action": [0.85, 0.02], "reward": -0.01, "value": 12.5, "log_prob": -1.23, "done": false},
+        {"obs": [0.12, 0.50, 0.02, 0.0, 0.90, 0.50, 0.78, 0.0], "action": [0.90, -0.05], "reward": -0.01, "value": 12.8, "log_prob": -1.18, "done": false},
+        {"obs": [0.15, 0.49, 0.03, -0.01, 0.90, 0.50, 0.75, -0.02], "action": [0.88, 0.08], "reward": -0.01, "value": 13.2, "log_prob": -1.15, "done": false},
+        {"obs": [0.18, 0.50, 0.03, 0.01, 0.90, 0.50, 0.72, 0.01], "action": [0.92, 0.0], "reward": -0.01, "value": 13.5, "log_prob": -1.12, "done": false},
+        {"obs": [0.22, 0.50, 0.04, 0.0, 0.90, 0.50, 0.68, 0.0], "action": [0.85, -0.10], "reward": -0.01, "value": 14.0, "log_prob": -1.20, "done": false},
+        {"obs": [0.26, 0.48, 0.04, -0.02, 0.90, 0.50, 0.64, -0.03], "action": [0.80, 0.15], "reward": -0.01, "value": 14.5, "log_prob": -1.25, "done": false},
+        {"obs": [0.30, 0.50, 0.04, 0.02, 0.90, 0.50, 0.60, 0.03], "action": [0.88, 0.0], "reward": -0.01, "value": 15.2, "log_prob": -1.10, "done": false},
+        {"obs": [0.35, 0.50, 0.05, 0.0, 0.90, 0.50, 0.55, 0.0], "action": [0.90, 0.05], "reward": -0.01, "value": 16.0, "log_prob": -1.08, "done": false},
+        {"obs": [0.40, 0.51, 0.05, 0.01, 0.90, 0.50, 0.50, 0.02], "action": [0.85, -0.08], "reward": -0.01, "value": 17.0, "log_prob": -1.15, "done": false},
+        {"obs": [0.45, 0.50, 0.05, -0.01, 0.90, 0.50, 0.45, -0.02], "action": [0.92, 0.03], "reward": -0.01, "value": 18.5, "log_prob": -1.05, "done": false}
+      ]
+    },
+    {
+      "rollout_id": 1,
+      "episode_return": 52.18,
+      "episode_length": 198,
+      "samples": [
+        {"obs": [0.10, 0.30, 0.0, 0.0, 0.85, 0.70, 0.85, 0.52], "action": [0.70, 0.50], "reward": -0.01, "value": 15.2, "log_prob": -1.45, "done": false},
+        {"obs": [0.13, 0.35, 0.03, 0.05, 0.85, 0.70, 0.80, 0.48], "action": [0.75, 0.45], "reward": -0.01, "value": 15.8, "log_prob": -1.40, "done": false},
+        {"obs": [0.17, 0.40, 0.04, 0.05, 0.85, 0.70, 0.75, 0.44], "action": [0.72, 0.40], "reward": -0.01, "value": 16.5, "log_prob": -1.38, "done": false},
+        {"obs": [0.21, 0.45, 0.04, 0.05, 0.85, 0.70, 0.69, 0.38], "action": [0.78, 0.35], "reward": -0.01, "value": 17.2, "log_prob": -1.32, "done": false},
+        {"obs": [0.26, 0.50, 0.05, 0.05, 0.85, 0.70, 0.63, 0.32], "action": [0.80, 0.28], "reward": -0.01, "value": 18.0, "log_prob": -1.28, "done": false},
+        {"obs": [0.32, 0.54, 0.06, 0.04, 0.85, 0.70, 0.56, 0.28], "action": [0.82, 0.22], "reward": -0.01, "value": 19.0, "log_prob": -1.22, "done": false},
+        {"obs": [0.38, 0.58, 0.06, 0.04, 0.85, 0.70, 0.49, 0.24], "action": [0.85, 0.18], "reward": -0.01, "value": 20.5, "log_prob": -1.18, "done": false},
+        {"obs": [0.45, 0.62, 0.07, 0.04, 0.85, 0.70, 0.41, 0.19], "action": [0.88, 0.12], "reward": -0.01, "value": 22.0, "log_prob": -1.12, "done": false}
+      ]
+    },
+    {
+      "rollout_id": 2,
+      "episode_return": 38.92,
+      "episode_length": 312,
+      "samples": [
+        {"obs": [0.10, 0.70, 0.0, 0.0, 0.80, 0.30, 0.78, -0.52], "action": [0.65, -0.55], "reward": -0.01, "value": 10.5, "log_prob": -1.55, "done": false},
+        {"obs": [0.13, 0.65, 0.03, -0.05, 0.80, 0.30, 0.74, -0.48], "action": [0.70, -0.50], "reward": -0.01, "value": 11.0, "log_prob": -1.50, "done": false},
+        {"obs": [0.17, 0.60, 0.04, -0.05, 0.80, 0.30, 0.69, -0.45], "action": [0.72, -0.45], "reward": -0.01, "value": 11.5, "log_prob": -1.45, "done": false},
+        {"obs": [0.21, 0.55, 0.04, -0.05, 0.80, 0.30, 0.64, -0.40], "action": [0.75, -0.38], "reward": -0.01, "value": 12.2, "log_prob": -1.40, "done": false},
+        {"obs": [0.26, 0.50, 0.05, -0.05, 0.80, 0.30, 0.58, -0.35], "action": [0.78, -0.32], "reward": -0.01, "value": 13.0, "log_prob": -1.35, "done": false},
+        {"obs": [0.32, 0.46, 0.06, -0.04, 0.80, 0.30, 0.51, -0.32], "action": [0.80, -0.25], "reward": -0.01, "value": 14.0, "log_prob": -1.28, "done": false}
+      ]
+    }
+  ],
+  "gae_advantages_computed": true,
+  "normalized_advantages": true
+}
+

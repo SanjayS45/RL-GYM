@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "name": "PPO Platformer Physics Control",
+    "type": "rollouts",
+    "algorithm": "PPO",
+    "environment": "platformer",
+    "config": "gaps",
+    "total_rollouts": 75,
+    "steps_per_rollout": 512,
+    "total_samples": 38400,
+    "observation_space": {
+      "type": "Box",
+      "shape": [12],
+      "description": [
+        "agent_x", "agent_y", "vel_x", "vel_y",
+        "on_ground", "can_jump",
+        "platform_dist_x", "platform_dist_y",
+        "gap_ahead", "gap_width",
+        "goal_dist_x", "goal_dist_y"
+      ]
+    },
+    "action_space": {
+      "type": "MultiDiscrete",
+      "nvec": [3, 2],
+      "description": ["movement (left/none/right)", "jump (no/yes)"]
+    },
+    "hyperparameters": {
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "learning_rate": 0.0003,
+      "entropy_coef": 0.005,
+      "value_coef": 0.5,
+      "max_grad_norm": 0.5
+    },
+    "created_at": "2024-01-20",
+    "description": "PPO rollout data for platformer with physics-based jumping. Multi-action format for simultaneous movement and jumping."
+  },
+  "rollouts": [
+    {
+      "rollout_id": 0,
+      "episode_return": 8.45,
+      "episode_length": 180,
+      "success": true,
+      "samples": [
+        {"obs": [0.05, 0.08, 0.0, 0.0, 1, 1, 0.12, 0.0, 0, 0.0, 0.90, 0.0], "action": [2, 0], "reward": 0.01, "value": 5.2, "log_prob": -1.2, "done": false},
+        {"obs": [0.07, 0.08, 0.02, 0.0, 1, 1, 0.10, 0.0, 0, 0.0, 0.88, 0.0], "action": [2, 0], "reward": 0.01, "value": 5.4, "log_prob": -1.1, "done": false},
+        {"obs": [0.10, 0.08, 0.03, 0.0, 1, 1, 0.07, 0.0, 0, 0.0, 0.85, 0.0], "action": [2, 0], "reward": 0.01, "value": 5.6, "log_prob": -1.0, "done": false},
+        {"obs": [0.13, 0.08, 0.03, 0.0, 1, 1, 0.04, 0.0, 1, 0.08, 0.82, 0.0], "action": [2, 1], "reward": 0.05, "value": 5.8, "log_prob": -1.5, "done": false},
+        {"obs": [0.16, 0.15, 0.03, 0.07, 0, 0, 0.01, -0.07, 1, 0.06, 0.79, 0.07], "action": [2, 0], "reward": 0.02, "value": 6.0, "log_prob": -0.9, "done": false},
+        {"obs": [0.19, 0.20, 0.03, 0.05, 0, 0, -0.02, -0.12, 1, 0.04, 0.76, 0.12], "action": [2, 0], "reward": 0.02, "value": 6.2, "log_prob": -0.9, "done": false},
+        {"obs": [0.22, 0.23, 0.03, 0.03, 0, 0, -0.05, -0.15, 1, 0.02, 0.73, 0.15], "action": [2, 0], "reward": 0.02, "value": 6.4, "log_prob": -0.9, "done": false},
+        {"obs": [0.25, 0.22, 0.03, -0.01, 0, 0, -0.08, -0.14, 0, 0.0, 0.70, 0.14], "action": [2, 0], "reward": 0.01, "value": 6.5, "log_prob": -0.9, "done": false},
+        {"obs": [0.28, 0.18, 0.03, -0.04, 0, 0, -0.11, -0.10, 0, 0.0, 0.67, 0.10], "action": [2, 0], "reward": 0.01, "value": 6.6, "log_prob": -0.9, "done": false},
+        {"obs": [0.31, 0.10, 0.03, -0.08, 0, 0, -0.14, -0.02, 0, 0.0, 0.64, 0.02], "action": [2, 0], "reward": 0.01, "value": 6.7, "log_prob": -0.9, "done": false},
+        {"obs": [0.34, 0.08, 0.03, 0.0, 1, 1, -0.17, 0.0, 0, 0.0, 0.61, 0.0], "action": [2, 0], "reward": 0.10, "value": 6.9, "log_prob": -0.8, "done": false}
+      ]
+    },
+    {
+      "rollout_id": 1,
+      "episode_return": -2.50,
+      "episode_length": 65,
+      "success": false,
+      "samples": [
+        {"obs": [0.05, 0.08, 0.0, 0.0, 1, 1, 0.12, 0.0, 0, 0.0, 0.90, 0.0], "action": [2, 0], "reward": 0.01, "value": 4.8, "log_prob": -1.3, "done": false},
+        {"obs": [0.07, 0.08, 0.02, 0.0, 1, 1, 0.10, 0.0, 0, 0.0, 0.88, 0.0], "action": [2, 0], "reward": 0.01, "value": 5.0, "log_prob": -1.2, "done": false},
+        {"obs": [0.10, 0.08, 0.03, 0.0, 1, 1, 0.07, 0.0, 0, 0.0, 0.85, 0.0], "action": [2, 0], "reward": 0.01, "value": 5.1, "log_prob": -1.1, "done": false},
+        {"obs": [0.13, 0.08, 0.03, 0.0, 1, 1, 0.04, 0.0, 1, 0.08, 0.82, 0.0], "action": [2, 0], "reward": -0.05, "value": 5.2, "log_prob": -0.9, "done": false},
+        {"obs": [0.16, 0.08, 0.03, 0.0, 0, 0, 0.01, 0.0, 1, 0.06, 0.79, 0.0], "action": [2, 0], "reward": -0.10, "value": 4.5, "log_prob": -0.9, "done": false},
+        {"obs": [0.19, 0.0, 0.03, -0.08, 0, 0, -0.02, 0.08, 1, 0.04, 0.76, -0.08], "action": [2, 1], "reward": -5.0, "value": 3.0, "log_prob": -1.8, "done": true}
+      ]
+    },
+    {
+      "rollout_id": 2,
+      "episode_return": 12.35,
+      "episode_length": 210,
+      "success": true,
+      "samples": [
+        {"obs": [0.05, 0.08, 0.0, 0.0, 1, 1, 0.12, 0.0, 0, 0.0, 0.90, 0.0], "action": [2, 0], "reward": 0.01, "value": 6.5, "log_prob": -0.8, "done": false},
+        {"obs": [0.08, 0.08, 0.03, 0.0, 1, 1, 0.09, 0.0, 0, 0.0, 0.87, 0.0], "action": [2, 0], "reward": 0.01, "value": 6.8, "log_prob": -0.7, "done": false},
+        {"obs": [0.11, 0.08, 0.03, 0.0, 1, 1, 0.06, 0.0, 1, 0.08, 0.84, 0.0], "action": [2, 1], "reward": 0.05, "value": 7.0, "log_prob": -1.2, "done": false},
+        {"obs": [0.14, 0.18, 0.03, 0.10, 0, 0, 0.03, -0.10, 1, 0.06, 0.81, 0.10], "action": [2, 0], "reward": 0.03, "value": 7.3, "log_prob": -0.7, "done": false},
+        {"obs": [0.17, 0.26, 0.03, 0.08, 0, 0, 0.0, -0.18, 1, 0.04, 0.78, 0.18], "action": [2, 0], "reward": 0.03, "value": 7.5, "log_prob": -0.7, "done": false},
+        {"obs": [0.20, 0.32, 0.03, 0.06, 0, 0, -0.03, -0.24, 0, 0.0, 0.75, 0.24], "action": [2, 0], "reward": 0.02, "value": 7.7, "log_prob": -0.7, "done": false},
+        {"obs": [0.23, 0.36, 0.03, 0.04, 0, 0, -0.06, -0.28, 0, 0.0, 0.72, 0.28], "action": [2, 0], "reward": 0.02, "value": 7.8, "log_prob": -0.7, "done": false},
+        {"obs": [0.26, 0.38, 0.03, 0.02, 0, 0, -0.09, -0.30, 0, 0.0, 0.69, 0.30], "action": [2, 0], "reward": 0.02, "value": 8.0, "log_prob": -0.7, "done": false},
+        {"obs": [0.29, 0.38, 0.03, 0.0, 0, 0, -0.12, -0.30, 0, 0.0, 0.66, 0.30], "action": [2, 0], "reward": 0.01, "value": 8.1, "log_prob": -0.7, "done": false},
+        {"obs": [0.32, 0.35, 0.03, -0.03, 0, 0, -0.15, -0.27, 0, 0.0, 0.63, 0.27], "action": [2, 0], "reward": 0.01, "value": 8.2, "log_prob": -0.7, "done": false}
+      ]
+    }
+  ],
+  "training_info": {
+    "epochs_trained": 15,
+    "policy_loss_history": [0.052, 0.048, 0.041, 0.035, 0.028, 0.022, 0.018, 0.015, 0.012, 0.010, 0.008, 0.007, 0.006, 0.005, 0.004],
+    "value_loss_history": [0.85, 0.72, 0.58, 0.45, 0.35, 0.28, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.07, 0.06, 0.05],
+    "entropy_history": [1.38, 1.35, 1.30, 1.25, 1.18, 1.10, 1.02, 0.95, 0.88, 0.82, 0.78, 0.75, 0.72, 0.70, 0.68],
+    "approx_kl_history": [0.008, 0.012, 0.015, 0.018, 0.020, 0.022, 0.019, 0.017, 0.015, 0.013, 0.011, 0.010, 0.009, 0.008, 0.007]
+  },
+  "statistics": {
+    "mean_episode_return": 6.10,
+    "std_episode_return": 4.25,
+    "mean_episode_length": 152,
+    "success_rate": 0.72,
+    "mean_jumps_per_episode": 4.8,
+    "mean_gaps_cleared": 2.1
+  }
+}
+

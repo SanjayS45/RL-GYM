@@ -13,7 +13,8 @@ interface Dataset {
 }
 
 // Sample datasets that can be "downloaded" or loaded
-const sampleDatasets: (Dataset & { downloadUrl: string })[] = [
+const sampleDatasets: (Dataset & { downloadUrl: string; algorithm?: string })[] = [
+  // General datasets
   {
     id: 'sample_nav_expert',
     name: 'Navigation Expert Demos',
@@ -46,6 +47,43 @@ const sampleDatasets: (Dataset & { downloadUrl: string })[] = [
     source: 'sample',
     description: 'Mixed-quality trajectories combining novice and expert play.',
     downloadUrl: '/datasets/platformer_mixed_quality.json',
+  },
+  // PPO-specific datasets
+  {
+    id: 'ppo_nav_continuous',
+    name: 'PPO Navigation Continuous',
+    type: 'trajectories',
+    size: 102400,
+    format: 'json',
+    compatible: true,
+    source: 'sample',
+    description: 'PPO rollout data for continuous 2D navigation. Includes log probs and value estimates.',
+    downloadUrl: '/datasets/ppo_navigation_continuous.json',
+    algorithm: 'PPO',
+  },
+  {
+    id: 'ppo_grid_discrete',
+    name: 'PPO GridWorld Discrete',
+    type: 'trajectories',
+    size: 102400,
+    format: 'json',
+    compatible: true,
+    source: 'sample',
+    description: 'PPO rollout data for discrete GridWorld maze. Includes action probs and GAE advantages.',
+    downloadUrl: '/datasets/ppo_gridworld_discrete.json',
+    algorithm: 'PPO',
+  },
+  {
+    id: 'ppo_platformer_physics',
+    name: 'PPO Platformer Physics',
+    type: 'trajectories',
+    size: 38400,
+    format: 'json',
+    compatible: true,
+    source: 'sample',
+    description: 'PPO rollout data for platformer with physics jumping. Multi-action format.',
+    downloadUrl: '/datasets/ppo_platformer_physics.json',
+    algorithm: 'PPO',
   },
 ]
 
@@ -279,7 +317,14 @@ export default function DatasetPanel() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <div className="font-medium text-[#c9d1d9] text-sm">{sample.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[#c9d1d9] text-sm">{sample.name}</span>
+                          {sample.algorithm && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#a371f7]/20 text-[#a371f7] border border-[#a371f7]/30 font-mono">
+                              {sample.algorithm}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeColors[sample.type]}`}>
                             {sample.type}

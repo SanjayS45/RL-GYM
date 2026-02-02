@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "name": "PPO GridWorld Discrete Actions",
+    "type": "rollouts",
+    "algorithm": "PPO",
+    "environment": "grid_world",
+    "config": "maze",
+    "total_rollouts": 100,
+    "steps_per_rollout": 1024,
+    "total_samples": 102400,
+    "observation_space": {
+      "type": "Box",
+      "shape": [64],
+      "description": "One-hot encoded 8x8 grid position"
+    },
+    "action_space": {
+      "type": "Discrete",
+      "n": 4,
+      "actions": ["up", "down", "left", "right"]
+    },
+    "hyperparameters": {
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "learning_rate": 0.00025,
+      "entropy_coef": 0.01
+    },
+    "created_at": "2024-01-20",
+    "description": "PPO rollout data for discrete GridWorld maze navigation. Includes action probabilities, values, and GAE advantages."
+  },
+  "rollouts": [
+    {
+      "rollout_id": 0,
+      "episode_return": 0.85,
+      "episode_length": 45,
+      "samples": [
+        {"obs_idx": 0, "action": 1, "action_probs": [0.15, 0.45, 0.20, 0.20], "reward": -0.01, "value": 0.65, "log_prob": -0.80, "done": false, "advantage": 0.12},
+        {"obs_idx": 8, "action": 1, "action_probs": [0.10, 0.50, 0.22, 0.18], "reward": -0.01, "value": 0.68, "log_prob": -0.69, "done": false, "advantage": 0.15},
+        {"obs_idx": 16, "action": 3, "action_probs": [0.12, 0.18, 0.20, 0.50], "reward": -0.01, "value": 0.70, "log_prob": -0.69, "done": false, "advantage": 0.18},
+        {"obs_idx": 17, "action": 1, "action_probs": [0.10, 0.55, 0.15, 0.20], "reward": -0.01, "value": 0.72, "log_prob": -0.60, "done": false, "advantage": 0.20},
+        {"obs_idx": 25, "action": 3, "action_probs": [0.08, 0.15, 0.17, 0.60], "reward": -0.01, "value": 0.75, "log_prob": -0.51, "done": false, "advantage": 0.22},
+        {"obs_idx": 26, "action": 3, "action_probs": [0.05, 0.12, 0.13, 0.70], "reward": -0.01, "value": 0.78, "log_prob": -0.36, "done": false, "advantage": 0.25},
+        {"obs_idx": 27, "action": 1, "action_probs": [0.08, 0.62, 0.15, 0.15], "reward": -0.01, "value": 0.82, "log_prob": -0.48, "done": false, "advantage": 0.28},
+        {"obs_idx": 35, "action": 3, "action_probs": [0.05, 0.10, 0.10, 0.75], "reward": -0.01, "value": 0.85, "log_prob": -0.29, "done": false, "advantage": 0.30},
+        {"obs_idx": 36, "action": 3, "action_probs": [0.04, 0.08, 0.08, 0.80], "reward": -0.01, "value": 0.88, "log_prob": -0.22, "done": false, "advantage": 0.32},
+        {"obs_idx": 37, "action": 1, "action_probs": [0.05, 0.70, 0.12, 0.13], "reward": -0.01, "value": 0.90, "log_prob": -0.36, "done": false, "advantage": 0.35},
+        {"obs_idx": 45, "action": 3, "action_probs": [0.03, 0.07, 0.05, 0.85], "reward": -0.01, "value": 0.92, "log_prob": -0.16, "done": false, "advantage": 0.38},
+        {"obs_idx": 46, "action": 3, "action_probs": [0.02, 0.05, 0.03, 0.90], "reward": 1.00, "value": 0.95, "log_prob": -0.11, "done": true, "advantage": 0.05}
+      ]
+    },
+    {
+      "rollout_id": 1,
+      "episode_return": 0.72,
+      "episode_length": 58,
+      "samples": [
+        {"obs_idx": 0, "action": 3, "action_probs": [0.20, 0.25, 0.15, 0.40], "reward": -0.01, "value": 0.55, "log_prob": -0.92, "done": false, "advantage": 0.08},
+        {"obs_idx": 1, "action": 3, "action_probs": [0.18, 0.22, 0.12, 0.48], "reward": -0.01, "value": 0.58, "log_prob": -0.73, "done": false, "advantage": 0.10},
+        {"obs_idx": 2, "action": 1, "action_probs": [0.15, 0.52, 0.13, 0.20], "reward": -0.01, "value": 0.60, "log_prob": -0.65, "done": false, "advantage": 0.12},
+        {"obs_idx": 10, "action": 3, "action_probs": [0.10, 0.15, 0.15, 0.60], "reward": -0.01, "value": 0.62, "log_prob": -0.51, "done": false, "advantage": 0.14},
+        {"obs_idx": 11, "action": 1, "action_probs": [0.08, 0.58, 0.17, 0.17], "reward": -0.01, "value": 0.65, "log_prob": -0.54, "done": false, "advantage": 0.16},
+        {"obs_idx": 19, "action": 0, "action_probs": [0.55, 0.20, 0.12, 0.13], "reward": -0.50, "value": 0.68, "log_prob": -0.60, "done": false, "advantage": -0.82},
+        {"obs_idx": 11, "action": 3, "action_probs": [0.12, 0.18, 0.10, 0.60], "reward": -0.01, "value": 0.45, "log_prob": -0.51, "done": false, "advantage": 0.10},
+        {"obs_idx": 12, "action": 1, "action_probs": [0.10, 0.60, 0.15, 0.15], "reward": -0.01, "value": 0.48, "log_prob": -0.51, "done": false, "advantage": 0.12}
+      ]
+    },
+    {
+      "rollout_id": 2,
+      "episode_return": 0.92,
+      "episode_length": 38,
+      "samples": [
+        {"obs_idx": 0, "action": 1, "action_probs": [0.10, 0.55, 0.18, 0.17], "reward": -0.01, "value": 0.72, "log_prob": -0.60, "done": false, "advantage": 0.18},
+        {"obs_idx": 8, "action": 3, "action_probs": [0.08, 0.12, 0.12, 0.68], "reward": -0.01, "value": 0.75, "log_prob": -0.39, "done": false, "advantage": 0.22},
+        {"obs_idx": 9, "action": 1, "action_probs": [0.06, 0.65, 0.14, 0.15], "reward": -0.01, "value": 0.78, "log_prob": -0.43, "done": false, "advantage": 0.25},
+        {"obs_idx": 17, "action": 3, "action_probs": [0.05, 0.10, 0.10, 0.75], "reward": -0.01, "value": 0.82, "log_prob": -0.29, "done": false, "advantage": 0.28},
+        {"obs_idx": 18, "action": 1, "action_probs": [0.04, 0.72, 0.12, 0.12], "reward": -0.01, "value": 0.85, "log_prob": -0.33, "done": false, "advantage": 0.30},
+        {"obs_idx": 26, "action": 3, "action_probs": [0.03, 0.08, 0.07, 0.82], "reward": -0.01, "value": 0.88, "log_prob": -0.20, "done": false, "advantage": 0.32},
+        {"obs_idx": 27, "action": 3, "action_probs": [0.02, 0.05, 0.05, 0.88], "reward": 1.00, "value": 0.92, "log_prob": -0.13, "done": true, "advantage": 0.08}
+      ]
+    }
+  ],
+  "statistics": {
+    "mean_episode_return": 0.83,
+    "std_episode_return": 0.15,
+    "mean_episode_length": 47,
+    "success_rate": 0.92
+  }
+}
+
