@@ -7,53 +7,45 @@ export default {
   theme: {
     extend: {
       colors: {
-        // AI Warehouse inspired dark theme
+        // GitHub-inspired dark theme for research tools
+        'canvas': '#010409',
         'surface': {
-          50: '#1a1a2e',
-          100: '#16162a',
-          200: '#0f0f23',
-          300: '#0a0a1a',
-          400: '#050510',
+          DEFAULT: '#0d1117',
+          subtle: '#161b22',
+          muted: '#21262d',
+        },
+        'border': {
+          DEFAULT: '#30363d',
+          muted: '#21262d',
+        },
+        'fg': {
+          DEFAULT: '#c9d1d9',
+          muted: '#8b949e',
+          subtle: '#484f58',
         },
         'accent': {
-          cyan: '#00d9ff',
-          purple: '#a855f7',
-          pink: '#ec4899',
-          green: '#10b981',
-          orange: '#f97316',
-        },
-        'neural': {
-          light: '#6366f1',
-          DEFAULT: '#4f46e5',
-          dark: '#3730a3',
+          blue: '#58a6ff',
+          green: '#3fb950',
+          purple: '#a371f7',
+          orange: '#d29922',
+          red: '#f85149',
+          cyan: '#79c0ff',
         },
       },
       fontFamily: {
-        'mono': ['JetBrains Mono', 'Fira Code', 'monospace'],
-        'display': ['Orbitron', 'system-ui', 'sans-serif'],
-        'sans': ['Inter', 'system-ui', 'sans-serif'],
+        'mono': ['SF Mono', 'Fira Code', 'Consolas', 'monospace'],
+        'sans': ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
       },
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
-        'float': 'float 6s ease-in-out infinite',
+        'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
       },
       keyframes: {
-        glow: {
-          '0%': { boxShadow: '0 0 5px #00d9ff, 0 0 10px #00d9ff, 0 0 15px #00d9ff' },
-          '100%': { boxShadow: '0 0 10px #00d9ff, 0 0 20px #00d9ff, 0 0 30px #00d9ff' },
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
         },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'grid-pattern': 'linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)',
       },
     },
   },
   plugins: [],
 }
-
