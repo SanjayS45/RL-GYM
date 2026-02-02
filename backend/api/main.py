@@ -46,10 +46,11 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(training.router, prefix="/api/training", tags=["training"])
-app.include_router(environments.router, prefix="/api/environments", tags=["environments"])
-app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
-app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
+# Note: Routers already have their own prefixes defined
+app.include_router(training.router)
+app.include_router(environments.router)
+app.include_router(agents.router)
+app.include_router(datasets.router)
 
 
 @app.get("/")
