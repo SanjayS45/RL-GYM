@@ -1,0 +1,30 @@
+{
+  "name": "GridWorld DQN Example",
+  "description": "Train a DQN agent to navigate a grid world",
+  "environment": {
+    "type": "gridworld",
+    "size": 10,
+    "obstacle_density": 0.1,
+    "seed": 42
+  },
+  "agent": {
+    "algorithm": "dqn",
+    "learning_rate": 0.001,
+    "gamma": 0.99,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.01,
+    "epsilon_decay": 0.995,
+    "buffer_size": 10000,
+    "batch_size": 64,
+    "target_update_freq": 100,
+    "hidden_dims": [128, 128]
+  },
+  "training": {
+    "total_timesteps": 50000,
+    "eval_freq": 1000,
+    "log_freq": 100,
+    "save_freq": 5000,
+    "render_freq": 10
+  }
+}
+
