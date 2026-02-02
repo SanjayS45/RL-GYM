@@ -60,6 +60,7 @@ runs/
 !tailwind.config.js
 !postcss.config.js
 !vite.config.ts
+!examples/*.json
 datasets/uploads/
 
 # Node
