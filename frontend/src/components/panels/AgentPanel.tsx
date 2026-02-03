@@ -219,7 +219,6 @@ const parameterConfig: Record<string, {
 export default function AgentPanel() {
   const { agent, setAlgorithm, setHyperparameter, resetAgentToDefaults } = useStore()
   const [expandedSections, setExpandedSections] = useState<string[]>(['core', 'algorithm'])
-  const [customParams, setCustomParams] = useState<Record<string, number | boolean>>({})
 
   const selectedAlgo = algorithms.find((a) => a.id === agent.algorithm)
 
@@ -231,42 +230,24 @@ export default function AgentPanel() {
     )
   }
 
+  // All parameters are stored in the global agent state
   const handleParamChange = (key: string, value: number | boolean) => {
-    setCustomParams(prev => ({ ...prev, [key]: value }))
-    // Map to store keys where they exist
-    const storeKeyMap: Record<string, string> = {
-      learningRate: 'learningRate',
-      gamma: 'gamma',
-      batchSize: 'batchSize',
-      nSteps: 'nSteps',
-      nEpochs: 'nEpochs',
-      clipRange: 'clipRange',
-      entCoef: 'entCoef',
-    }
-    if (storeKeyMap[key]) {
-      setHyperparameter(storeKeyMap[key] as any, value)
+    // Directly update the store - all parameters are now in the agent state
+    if (key in agent) {
+      setHyperparameter(key as keyof typeof agent, value)
     }
   }
 
   const getParamValue = (key: string): number | boolean => {
-    if (customParams[key] !== undefined) return customParams[key]
-    const storeKeyMap: Record<string, keyof typeof agent> = {
-      learningRate: 'learningRate',
-      gamma: 'gamma',
-      batchSize: 'batchSize',
-      nSteps: 'nSteps',
-      nEpochs: 'nEpochs',
-      clipRange: 'clipRange',
-      entCoef: 'entCoef',
+    // Get value directly from agent state
+    if (key in agent) {
+      return agent[key as keyof typeof agent] as number | boolean
     }
-    if (storeKeyMap[key] && agent[storeKeyMap[key]] !== undefined) {
-      return agent[storeKeyMap[key]] as number
-    }
+    // Fallback to default
     return parameterConfig[key]?.default ?? 0
   }
 
   const handleReset = () => {
-    setCustomParams({})
     resetAgentToDefaults(agent.algorithm)
   }
 
