@@ -94,6 +94,8 @@ interface DatasetState {
   useForFinetuning: boolean
 }
 
+type TrainingMode = 'online' | 'offline' | 'hybrid'
+
 interface AppState {
   // UI state
   activeTab: string
@@ -142,6 +144,10 @@ interface AppState {
   removeDataset: (id: string) => void
   selectDataset: (id: string | null) => void
   setDatasetUsage: (pretraining: boolean, finetuning: boolean) => void
+
+  // Training mode
+  trainingMode: TrainingMode
+  setTrainingMode: (mode: TrainingMode) => void
 
   // WebSocket connection
   wsConnected: boolean
@@ -421,6 +427,10 @@ export const useStore = create<AppState>()(
           },
         })),
 
+      // Training mode
+      trainingMode: 'online' as TrainingMode,
+      setTrainingMode: (trainingMode) => set({ trainingMode }),
+
       // WebSocket
       wsConnected: false,
       setWsConnected: (connected) => set({ wsConnected: connected }),
@@ -446,6 +456,7 @@ export const useStore = create<AppState>()(
         datasetState: state.datasetState,
         goalText: state.goalText,
         goalSubmitted: state.goalSubmitted,
+        trainingMode: state.trainingMode,
       }),
     }
   )
