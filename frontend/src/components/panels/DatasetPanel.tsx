@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Database, Upload, FileText, Trash2, Check, AlertCircle, Download, FolderOpen, ExternalLink } from 'lucide-react'
+import { Database, Upload, FileText, Trash2, Check, AlertCircle, Download, FolderOpen } from 'lucide-react'
+import { useStore } from '../../store/useStore'
 
 interface Dataset {
   id: string
@@ -10,10 +11,11 @@ interface Dataset {
   compatible: boolean
   source: 'uploaded' | 'sample'
   description?: string
+  algorithm?: string
 }
 
 // Sample datasets that can be "downloaded" or loaded
-const sampleDatasets: (Dataset & { downloadUrl: string; algorithm?: string })[] = [
+const sampleDatasets: (Dataset & { downloadUrl: string })[] = [
   // General datasets
   {
     id: 'sample_nav_expert',
@@ -88,8 +90,7 @@ const sampleDatasets: (Dataset & { downloadUrl: string; algorithm?: string })[] 
 ]
 
 export default function DatasetPanel() {
-  const [datasets, setDatasets] = useState<Dataset[]>([])
-  const [selectedDataset, setSelectedDataset] = useState<string | null>(null)
+  const { datasetState, addDataset, removeDataset, selectDataset, setDatasetUsage } = useStore()
   const [isUploading, setIsUploading] = useState(false)
   const [activeTab, setActiveTab] = useState<'uploaded' | 'samples'>('uploaded')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -114,8 +115,8 @@ export default function DatasetPanel() {
       description: `Uploaded file: ${file.name}`,
     }
     
-    setDatasets(prev => [...prev, newDataset])
-    setSelectedDataset(newDataset.id)
+    addDataset(newDataset)
+    selectDataset(newDataset.id)
     setIsUploading(false)
     setActiveTab('uploaded')
     
@@ -127,22 +128,19 @@ export default function DatasetPanel() {
 
   const handleUseSample = (sample: Dataset) => {
     // Check if already added
-    if (datasets.find(d => d.id === sample.id)) {
-      setSelectedDataset(sample.id)
+    if (datasetState.datasets.find(d => d.id === sample.id)) {
+      selectDataset(sample.id)
       setActiveTab('uploaded')
       return
     }
     
-    setDatasets(prev => [...prev, { ...sample, source: 'sample' }])
-    setSelectedDataset(sample.id)
+    addDataset({ ...sample, source: 'sample' })
+    selectDataset(sample.id)
     setActiveTab('uploaded')
   }
 
   const handleDelete = (id: string) => {
-    setDatasets(prev => prev.filter((d) => d.id !== id))
-    if (selectedDataset === id) {
-      setSelectedDataset(null)
-    }
+    removeDataset(id)
   }
 
   const handleDownloadSample = (sample: Dataset & { downloadUrl?: string }) => {
@@ -171,7 +169,7 @@ export default function DatasetPanel() {
     offline: 'bg-[#8957e5]/20 text-[#a371f7] border-[#8957e5]/30',
   }
 
-  const uploadedDatasets = datasets.filter(d => d.source === 'uploaded' || datasets.find(ds => ds.id === d.id))
+  const selectedDataset = [...datasetState.datasets, ...sampleDatasets].find(d => d.id === datasetState.selectedDatasetId)
 
   return (
     <div className="h-full flex gap-4">
@@ -187,7 +185,7 @@ export default function DatasetPanel() {
                 : 'text-[#8b949e] hover:text-[#c9d1d9]'
             }`}
           >
-            My Datasets ({uploadedDatasets.length})
+            My Datasets ({datasetState.datasets.length})
           </button>
           <button
             onClick={() => setActiveTab('samples')}
@@ -246,7 +244,7 @@ export default function DatasetPanel() {
               </label>
 
               {/* Dataset list */}
-              {uploadedDatasets.length === 0 ? (
+              {datasetState.datasets.length === 0 ? (
                 <div className="text-center py-8 text-[#8b949e]">
                   <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No datasets loaded</p>
@@ -256,22 +254,27 @@ export default function DatasetPanel() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {uploadedDatasets.map((dataset) => (
+                  {datasetState.datasets.map((dataset) => (
                     <div
                       key={dataset.id}
                       className={`p-3 rounded border cursor-pointer transition-all ${
-                        selectedDataset === dataset.id
+                        datasetState.selectedDatasetId === dataset.id
                           ? 'border-[#58a6ff] bg-[#58a6ff]/10'
                           : 'border-[#30363d] hover:border-[#484f58] bg-[#161b22]'
                       }`}
-                      onClick={() => setSelectedDataset(dataset.id)}
+                      onClick={() => selectDataset(dataset.id)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-[#8b949e]" />
                           <div>
-                            <div className="font-medium text-[#c9d1d9] text-sm">
-                              {dataset.name}
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-[#c9d1d9] text-sm">{dataset.name}</span>
+                              {datasetState.selectedDatasetId === dataset.id && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#238636]/20 text-[#3fb950] border border-[#238636]/30">
+                                  SELECTED
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeColors[dataset.type]}`}>
@@ -324,6 +327,11 @@ export default function DatasetPanel() {
                               {sample.algorithm}
                             </span>
                           )}
+                          {datasetState.datasets.find(d => d.id === sample.id) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#238636]/20 text-[#3fb950] border border-[#238636]/30">
+                              LOADED
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeColors[sample.type]}`}>
@@ -339,10 +347,14 @@ export default function DatasetPanel() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleUseSample(sample)}
-                        className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-medium py-1.5 px-3 rounded flex items-center justify-center gap-1.5 transition-colors"
+                        className={`flex-1 text-xs font-medium py-1.5 px-3 rounded flex items-center justify-center gap-1.5 transition-colors ${
+                          datasetState.datasets.find(d => d.id === sample.id)
+                            ? 'bg-[#238636]/20 text-[#3fb950] border border-[#238636]/30'
+                            : 'bg-[#238636] hover:bg-[#2ea043] text-white'
+                        }`}
                       >
                         <Check className="w-3 h-3" />
-                        Use Dataset
+                        {datasetState.datasets.find(d => d.id === sample.id) ? 'Select' : 'Use Dataset'}
                       </button>
                       <button
                         onClick={() => handleDownloadSample(sample)}
@@ -364,7 +376,10 @@ export default function DatasetPanel() {
       <div className="flex-1 bg-[#0d1117] border border-[#30363d] rounded-md">
         {selectedDataset ? (
           <DatasetDetails
-            dataset={[...datasets, ...sampleDatasets].find((d) => d.id === selectedDataset)!}
+            dataset={selectedDataset}
+            useForPretraining={datasetState.useForPretraining}
+            useForFinetuning={datasetState.useForFinetuning}
+            onSetUsage={setDatasetUsage}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
@@ -380,7 +395,17 @@ export default function DatasetPanel() {
   )
 }
 
-function DatasetDetails({ dataset }: { dataset: Dataset }) {
+function DatasetDetails({ 
+  dataset, 
+  useForPretraining, 
+  useForFinetuning,
+  onSetUsage 
+}: { 
+  dataset: Dataset
+  useForPretraining: boolean
+  useForFinetuning: boolean
+  onSetUsage: (pretraining: boolean, finetuning: boolean) => void
+}) {
   const typeColors = {
     demonstrations: 'bg-[#238636]/10 border-[#238636]/30 text-[#3fb950]',
     trajectories: 'bg-[#1f6feb]/10 border-[#1f6feb]/30 text-[#58a6ff]',
@@ -392,6 +417,11 @@ function DatasetDetails({ dataset }: { dataset: Dataset }) {
       <div className="px-4 py-2 border-b border-[#30363d] flex items-center gap-2">
         <FileText className="w-4 h-4 text-[#8b949e]" />
         <span className="text-sm font-medium text-[#c9d1d9]">{dataset.name}</span>
+        {dataset.algorithm && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#a371f7]/20 text-[#a371f7] border border-[#a371f7]/30 font-mono ml-auto">
+            {dataset.algorithm}
+          </span>
+        )}
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto">
@@ -461,15 +491,48 @@ function DatasetDetails({ dataset }: { dataset: Dataset }) {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors">
-            Use for Pretraining
-          </button>
-          <button className="flex-1 bg-[#30363d] hover:bg-[#484f58] text-[#c9d1d9] text-sm font-medium py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors">
-            Use for Fine-tuning
-          </button>
+        {/* Usage Options */}
+        <div className="mb-4">
+          <h3 className="text-xs font-medium text-[#8b949e] mb-2">Training Usage</h3>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 p-3 bg-[#161b22] border border-[#30363d] rounded-md cursor-pointer hover:border-[#484f58]">
+              <input
+                type="checkbox"
+                checked={useForPretraining}
+                onChange={(e) => onSetUsage(e.target.checked, useForFinetuning)}
+                className="w-4 h-4 rounded border-[#30363d] text-[#238636] focus:ring-[#238636]"
+              />
+              <div>
+                <div className="text-sm text-[#c9d1d9]">Use for Pretraining</div>
+                <div className="text-[10px] text-[#8b949e]">Initialize policy from this dataset before RL training</div>
+              </div>
+            </label>
+            <label className="flex items-center gap-3 p-3 bg-[#161b22] border border-[#30363d] rounded-md cursor-pointer hover:border-[#484f58]">
+              <input
+                type="checkbox"
+                checked={useForFinetuning}
+                onChange={(e) => onSetUsage(useForPretraining, e.target.checked)}
+                className="w-4 h-4 rounded border-[#30363d] text-[#238636] focus:ring-[#238636]"
+              />
+              <div>
+                <div className="text-sm text-[#c9d1d9]">Use for Fine-tuning</div>
+                <div className="text-[10px] text-[#8b949e]">Mix with online RL data during training</div>
+              </div>
+            </label>
+          </div>
         </div>
+
+        {/* Status */}
+        {(useForPretraining || useForFinetuning) && (
+          <div className="p-3 bg-[#238636]/10 border border-[#238636]/30 rounded-md">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-[#3fb950]" />
+              <span className="text-sm text-[#3fb950]">
+                Dataset configured for {useForPretraining && useForFinetuning ? 'pretraining and fine-tuning' : useForPretraining ? 'pretraining' : 'fine-tuning'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

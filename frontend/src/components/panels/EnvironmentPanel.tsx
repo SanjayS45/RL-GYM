@@ -38,9 +38,8 @@ const goalPresets = [
 ]
 
 export default function EnvironmentPanel() {
-  const { environment, setEnvironmentType, setEnvironmentConfig, goalText, setGoalText, updateEnvironmentState } = useStore()
+  const { environment, setEnvironmentType, setEnvironmentConfig, goalText, setGoalText, goalSubmitted, setGoalSubmitted, updateEnvironmentState } = useStore()
   const [selectedEnv, setSelectedEnv] = useState(environment.type || 'navigation')
-  const [goalSubmitted, setGoalSubmitted] = useState(false)
   const [localGoalText, setLocalGoalText] = useState(goalText)
 
   const handleEnvSelect = (envId: string) => {
@@ -214,7 +213,7 @@ export default function EnvironmentPanel() {
                 setGoalText(localGoalText)
                 setGoalSubmitted(true)
               }}
-              disabled={!localGoalText.trim() || (goalSubmitted && localGoalText === goalText)}
+              disabled={!localGoalText.trim()}
               className={`mt-2 w-full py-2 px-3 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
                 goalSubmitted && localGoalText === goalText
                   ? 'bg-[#238636]/20 text-[#3fb950] border border-[#238636]/30'
