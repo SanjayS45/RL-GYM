@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap, Eye, Target, Database } from 'lucide-react'
+import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap, Eye, Target, Database, AlertTriangle } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -30,6 +30,8 @@ export default function TrainingPanel() {
     goalText, 
     goalSubmitted,
     datasetState,
+    trainingMode,
+    setTrainingMode,
     setTrainingStatus, 
     setSessionId,
     updateTrainingProgress,
@@ -39,6 +41,14 @@ export default function TrainingPanel() {
   } = useStore()
   
   const selectedDataset = datasetState.datasets.find(d => d.id === datasetState.selectedDatasetId)
+  
+  // Validation: Check if we can start training
+  const requiresDataset = trainingMode === 'offline' || trainingMode === 'hybrid'
+  const hasDataset = !!selectedDataset
+  const canStartTraining = !requiresDataset || hasDataset
+  const validationError = requiresDataset && !hasDataset 
+    ? `${trainingMode === 'offline' ? 'Offline' : 'Hybrid'} training requires a dataset. Please select one in the Datasets tab.`
+    : null
   
   const [totalTimesteps, setTotalTimesteps] = useState(100000)
   const [evalFrequency, setEvalFrequency] = useState(1000)
@@ -63,7 +73,7 @@ export default function TrainingPanel() {
 
   const isTraining = training.status === 'running'
   const isPaused = training.status === 'paused'
-  const canStart = training.status === 'idle' || training.status === 'completed'
+  const canStart = (training.status === 'idle' || training.status === 'completed') && canStartTraining
 
   // Initialize obstacles based on environment config
   useEffect(() => {
@@ -498,12 +508,51 @@ export default function TrainingPanel() {
               </div>
             </div>
 
+            {/* Training Mode Selector */}
+            <div className="mb-3">
+              <label className="block text-[10px] text-[#8b949e] mb-1.5">Training Mode</label>
+              <div className="flex gap-1">
+                {(['online', 'offline', 'hybrid'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setTrainingMode(mode)}
+                    disabled={isTraining}
+                    className={`flex-1 py-1.5 px-2 text-[10px] font-medium rounded transition-colors ${
+                      trainingMode === mode
+                        ? 'bg-[#238636] text-white'
+                        : 'bg-[#21262d] text-[#8b949e] hover:bg-[#30363d]'
+                    } ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[9px] text-[#484f58] mt-1">
+                {trainingMode === 'online' && 'Learn from environment interaction only'}
+                {trainingMode === 'offline' && 'Learn from dataset only (requires dataset)'}
+                {trainingMode === 'hybrid' && 'Combine dataset + environment (requires dataset)'}
+              </div>
+            </div>
+
+            {/* Validation Warning */}
+            {validationError && (
+              <div className="mb-3 p-2 bg-[#da3633]/10 border border-[#da3633]/30 rounded flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-[#f85149] flex-shrink-0 mt-0.5" />
+                <span className="text-[10px] text-[#f85149]">{validationError}</span>
+              </div>
+            )}
+
             {/* Buttons */}
             <div className="flex gap-2">
-              {canStart ? (
+              {(training.status === 'idle' || training.status === 'completed') ? (
                 <button
                   onClick={handleStart}
-                  className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors"
+                  disabled={!canStartTraining}
+                  className={`flex-1 text-sm font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors ${
+                    canStartTraining
+                      ? 'bg-[#238636] hover:bg-[#2ea043] text-white'
+                      : 'bg-[#21262d] text-[#484f58] cursor-not-allowed'
+                  }`}
                 >
                   <Play className="w-4 h-4" />
                   Start Training
@@ -770,12 +819,28 @@ export default function TrainingPanel() {
               {!isTraining && !isPaused && (
                 <g>
                   <rect x="0" y="0" width="800" height="600" fill="#010409" fillOpacity="0.7" />
-                  <text x="400" y="290" textAnchor="middle" fill="#8b949e" fontSize="14" fontFamily="sans-serif">
-                    Click "Start Training" to begin
-                  </text>
-                  <text x="400" y="315" textAnchor="middle" fill="#484f58" fontSize="11" fontFamily="sans-serif">
-                    Agent will learn to reach the goal
-                  </text>
+                  {validationError ? (
+                    <>
+                      <text x="400" y="280" textAnchor="middle" fill="#f85149" fontSize="14" fontFamily="sans-serif">
+                        ⚠ Dataset Required
+                      </text>
+                      <text x="400" y="305" textAnchor="middle" fill="#8b949e" fontSize="11" fontFamily="sans-serif">
+                        {trainingMode === 'offline' ? 'Offline' : 'Hybrid'} training mode requires a dataset
+                      </text>
+                      <text x="400" y="330" textAnchor="middle" fill="#484f58" fontSize="11" fontFamily="sans-serif">
+                        Go to Datasets tab to upload or select one
+                      </text>
+                    </>
+                  ) : (
+                    <>
+                      <text x="400" y="290" textAnchor="middle" fill="#8b949e" fontSize="14" fontFamily="sans-serif">
+                        Click "Start Training" to begin
+                      </text>
+                      <text x="400" y="315" textAnchor="middle" fill="#484f58" fontSize="11" fontFamily="sans-serif">
+                        Agent will learn to reach the goal ({trainingMode} mode)
+                      </text>
+                    </>
+                  )}
                 </g>
               )}
               
