@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap, Eye, Target } from 'lucide-react'
+import { Play, Pause, Square, Settings, Terminal, Cpu, Clock, Zap, Eye, Target, Database } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -28,6 +28,8 @@ export default function TrainingPanel() {
     agent, 
     environment, 
     goalText, 
+    goalSubmitted,
+    datasetState,
     setTrainingStatus, 
     setSessionId,
     updateTrainingProgress,
@@ -35,6 +37,8 @@ export default function TrainingPanel() {
     addToHistory,
     resetTraining
   } = useStore()
+  
+  const selectedDataset = datasetState.datasets.find(d => d.id === datasetState.selectedDatasetId)
   
   const [totalTimesteps, setTotalTimesteps] = useState(100000)
   const [evalFrequency, setEvalFrequency] = useState(1000)
@@ -324,7 +328,13 @@ export default function TrainingPanel() {
       
       addLog(`[CONFIG] Environment: ${environment.type} (${environment.config})`)
       addLog(`[CONFIG] Algorithm: ${agent.algorithm}`)
-      addLog(`[CONFIG] Goal: ${goalText || 'Navigate to target'}`)
+      addLog(`[CONFIG] LR: ${agent.learningRate.toExponential(1)} | γ: ${agent.gamma} | Batch: ${agent.batchSize}`)
+      if (goalSubmitted && goalText) {
+        addLog(`[CONFIG] Goal: ${goalText}`)
+      }
+      if (selectedDataset) {
+        addLog(`[CONFIG] Dataset: ${selectedDataset.name} (${datasetState.useForPretraining ? 'pretrain' : ''}${datasetState.useForFinetuning ? ' finetune' : ''})`)
+      }
       addLog(`[CONFIG] Total timesteps: ${totalTimesteps.toLocaleString()}`)
       addLog('[SYSTEM] Starting training...')
       
@@ -346,10 +356,27 @@ export default function TrainingPanel() {
             n_epochs: agent.nEpochs,
             clip_range: agent.clipRange,
             ent_coef: agent.entCoef,
+            vf_coef: agent.vfCoef,
+            max_grad_norm: agent.maxGradNorm,
           }),
           ...(agent.algorithm === 'A2C' && {
             n_steps: agent.nSteps,
             ent_coef: agent.entCoef,
+            vf_coef: agent.vfCoef,
+            max_grad_norm: agent.maxGradNorm,
+          }),
+          ...(agent.algorithm === 'DQN' && {
+            buffer_size: agent.bufferSize,
+            epsilon_start: agent.epsilonStart,
+            epsilon_end: agent.epsilonEnd,
+            epsilon_decay: agent.epsilonDecay,
+            target_update_freq: agent.targetUpdateFreq,
+          }),
+          ...(agent.algorithm === 'SAC' && {
+            buffer_size: agent.bufferSize,
+            tau: agent.tau,
+            alpha: agent.alpha,
+            auto_alpha: agent.autoAlpha,
           }),
         },
         training_config: {
@@ -357,7 +384,12 @@ export default function TrainingPanel() {
           eval_freq: evalFrequency,
           log_freq: logFrequency,
         },
-        natural_language_goal: goalText || undefined,
+        natural_language_goal: goalSubmitted ? goalText : undefined,
+        dataset: selectedDataset ? {
+          id: selectedDataset.id,
+          use_for_pretraining: datasetState.useForPretraining,
+          use_for_finetuning: datasetState.useForFinetuning,
+        } : undefined,
       }
       
       const response = await fetch(`${API_URL}/training/start`, {
@@ -550,8 +582,8 @@ export default function TrainingPanel() {
         </div>
 
         {/* Goal Display */}
-        {goalText && (
-          <div className="bg-[#161b22] border border-[#30363d] rounded-md p-3">
+        {goalText && goalSubmitted && (
+          <div className="bg-[#161b22] border border-[#238636]/30 rounded-md p-3">
             <div className="flex items-center gap-2 mb-2">
               <Target className="w-4 h-4 text-[#3fb950]" />
               <span className="text-xs font-medium text-[#c9d1d9]">Active Goal</span>
@@ -559,6 +591,60 @@ export default function TrainingPanel() {
             <p className="text-[10px] text-[#8b949e]">{goalText}</p>
           </div>
         )}
+
+        {/* Dataset Display */}
+        {selectedDataset && (
+          <div className="bg-[#161b22] border border-[#58a6ff]/30 rounded-md p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="w-4 h-4 text-[#58a6ff]" />
+              <span className="text-xs font-medium text-[#c9d1d9]">Dataset</span>
+            </div>
+            <p className="text-[10px] text-[#c9d1d9]">{selectedDataset.name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              {datasetState.useForPretraining && (
+                <span className="text-[8px] px-1 py-0.5 rounded bg-[#238636]/20 text-[#3fb950]">Pretraining</span>
+              )}
+              {datasetState.useForFinetuning && (
+                <span className="text-[8px] px-1 py-0.5 rounded bg-[#a371f7]/20 text-[#a371f7]">Finetuning</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Current Config Summary */}
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-md p-3">
+          <div className="text-[10px] text-[#8b949e] mb-2">TRAINING CONFIG</div>
+          <div className="space-y-1 text-[10px]">
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Algorithm</span>
+              <span className="text-[#a371f7] font-mono">{agent.algorithm}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Learning Rate</span>
+              <span className="text-[#c9d1d9] font-mono">{agent.learningRate.toExponential(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Gamma</span>
+              <span className="text-[#c9d1d9] font-mono">{agent.gamma.toFixed(3)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Batch Size</span>
+              <span className="text-[#c9d1d9] font-mono">{agent.batchSize}</span>
+            </div>
+            {agent.algorithm === 'PPO' && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-[#8b949e]">N Steps</span>
+                  <span className="text-[#c9d1d9] font-mono">{agent.nSteps}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8b949e]">Clip Range</span>
+                  <span className="text-[#c9d1d9] font-mono">{agent.clipRange.toFixed(2)}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Center - Visualization */}
