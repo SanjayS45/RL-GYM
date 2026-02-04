@@ -191,3 +191,6 @@ class ConnectionManager:
 # Global connection manager instance
 manager = ConnectionManager()
 
+# Alias for backwards compatibility
+WebSocketManager = ConnectionManager
+websocket_manager = manager

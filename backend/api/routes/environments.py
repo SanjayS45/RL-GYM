@@ -3,8 +3,8 @@ from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...environments import GridWorldEnv, NavigationEnv, PlatformerEnv
-from ...nlp import GoalParser
+from environments import GridWorldEnv, NavigationEnv, PlatformerEnv
+from nlp import GoalParser
 
 router = APIRouter(prefix="/environments", tags=["environments"])
 

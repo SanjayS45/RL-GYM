@@ -10,8 +10,8 @@ import uuid
 import asyncio
 import numpy as np
 
-from ..rl_core.algorithms import DQN, PPO, SAC, A2C
-from ..environments import GridWorldEnv, NavigationEnv, PlatformerEnv
+from rl_core.algorithms import DQN, PPO, SAC, A2C
+from environments import GridWorldEnv, NavigationEnv, PlatformerEnv
 
 
 @dataclass

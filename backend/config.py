@@ -3,38 +3,48 @@ Configuration Module
 Centralized configuration for RL-GYM.
 """
 
-from typing import Dict, Any, Optional
-from pydantic import BaseSettings, Field
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field
 import os
 
 
-class Settings(BaseSettings):
+@dataclass
+class Settings:
     """Application settings."""
     
     # API Settings
-    api_host: str = Field(default="0.0.0.0", env="API_HOST")
-    api_port: int = Field(default=8000, env="API_PORT")
-    debug: bool = Field(default=False, env="DEBUG")
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    debug: bool = False
     
     # CORS
-    cors_origins: list = Field(default=["*"], env="CORS_ORIGINS")
+    cors_origins: List[str] = field(default_factory=lambda: ["*"])
     
     # Training Settings
-    default_algorithm: str = Field(default="PPO", env="DEFAULT_ALGORITHM")
-    default_total_timesteps: int = Field(default=100000, env="DEFAULT_TIMESTEPS")
-    max_concurrent_sessions: int = Field(default=5, env="MAX_SESSIONS")
+    default_algorithm: str = "PPO"
+    default_total_timesteps: int = 100000
+    max_concurrent_sessions: int = 5
     
     # Storage
-    models_dir: str = Field(default="models", env="MODELS_DIR")
-    datasets_dir: str = Field(default="datasets", env="DATASETS_DIR")
-    logs_dir: str = Field(default="logs", env="LOGS_DIR")
+    models_dir: str = "models"
+    datasets_dir: str = "datasets"
+    logs_dir: str = "logs"
     
     # Device
-    device: str = Field(default="auto", env="DEVICE")
+    device: str = "auto"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    def __post_init__(self):
+        """Load from environment variables."""
+        self.api_host = os.environ.get("API_HOST", self.api_host)
+        self.api_port = int(os.environ.get("API_PORT", self.api_port))
+        self.debug = os.environ.get("DEBUG", "false").lower() == "true"
+        self.default_algorithm = os.environ.get("DEFAULT_ALGORITHM", self.default_algorithm)
+        self.default_total_timesteps = int(os.environ.get("DEFAULT_TIMESTEPS", self.default_total_timesteps))
+        self.max_concurrent_sessions = int(os.environ.get("MAX_SESSIONS", self.max_concurrent_sessions))
+        self.models_dir = os.environ.get("MODELS_DIR", self.models_dir)
+        self.datasets_dir = os.environ.get("DATASETS_DIR", self.datasets_dir)
+        self.logs_dir = os.environ.get("LOGS_DIR", self.logs_dir)
+        self.device = os.environ.get("DEVICE", self.device)
 
 
 # Default hyperparameters for each algorithm
@@ -139,6 +149,16 @@ ENVIRONMENT_CONFIGS: Dict[str, Dict[str, Any]] = {
 }
 
 
+class Config:
+    """Main configuration class."""
+    
+    def __init__(self):
+        self.settings = Settings()
+        self.data_dir = self.settings.datasets_dir
+        self.models_dir = self.settings.models_dir
+        self.logs_dir = self.settings.logs_dir
+
+
 def get_settings() -> Settings:
     """Get application settings."""
     return Settings()
@@ -153,4 +173,3 @@ def get_environment_config(env_type: str, config_name: str) -> Dict[str, Any]:
     """Get environment configuration."""
     env_configs = ENVIRONMENT_CONFIGS.get(env_type, {})
     return env_configs.get(config_name, {}).copy()
-

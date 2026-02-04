@@ -6,9 +6,9 @@ import os
 import uuid
 import torch
 
-from ...rl_core import set_seed
-from ...rl_core.algorithms import DQN, PPO, SAC, A2C
-from ...config import Config
+from rl_core import set_seed
+from rl_core.algorithms import DQN, PPO, SAC, A2C
+from config import Config
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

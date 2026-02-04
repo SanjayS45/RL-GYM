@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Run script for RL-GYM backend server."""
 import argparse
+import sys
+import os
+
+# Add backend directory to Python path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 import uvicorn
 
 
@@ -62,6 +70,9 @@ def main():
     Press Ctrl+C to stop the server.
     """)
     
+    # Change to backend directory for proper imports
+    os.chdir(backend_dir)
+    
     uvicorn.run(
         "api.main:app",
         host=args.host,
@@ -74,4 +85,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

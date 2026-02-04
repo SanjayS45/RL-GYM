@@ -3,7 +3,7 @@ Dataset Loader
 Loads datasets from various formats.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 from pathlib import Path
 import json
 import numpy as np
@@ -21,14 +21,19 @@ class DatasetLoader:
     
     SUPPORTED_FORMATS = ['json', 'csv', 'h5', 'hdf5', 'npz']
     
-    def __init__(self, base_path: Optional[Path] = None):
+    def __init__(self, base_path: Optional[Union[Path, str]] = None):
         """
         Initialize dataset loader.
         
         Args:
             base_path: Base directory for dataset files
         """
-        self.base_path = base_path or Path("datasets")
+        if base_path is None:
+            self.base_path = Path("datasets")
+        elif isinstance(base_path, str):
+            self.base_path = Path(base_path)
+        else:
+            self.base_path = base_path
         self.base_path.mkdir(parents=True, exist_ok=True)
     
     def load(self, path: str) -> Dict[str, Any]:

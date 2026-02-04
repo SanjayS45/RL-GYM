@@ -7,8 +7,8 @@ import json
 import uuid
 from datetime import datetime
 
-from ...datasets import DatasetLoader, DatasetValidator, DatasetPreprocessor
-from ...config import Config
+from datasets import DatasetLoader, DatasetValidator, DatasetPreprocessor
+from config import Config
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 

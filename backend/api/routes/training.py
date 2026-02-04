@@ -4,9 +4,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel
 import asyncio
 
-from ..websocket import WebSocketManager
-from ...training import TrainingManager, TrainingSession
-from ...config import Config
+from api.websocket import WebSocketManager
+from training import TrainingManager, TrainingSession
+from config import Config
 
 router = APIRouter(prefix="/training", tags=["training"])
 
